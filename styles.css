@@ -176,6 +176,11 @@ a{color:inherit}
 .check-list{list-style:none;margin:1rem 0;padding:0;display:grid;gap:.55rem;font-size:.94rem}
 .check-list li{padding-left:1.6rem;position:relative}
 .check-list li::before{content:"✓";position:absolute;left:0;color:var(--green);font-weight:800}
+.mini-head{font-size:.76rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--gold);margin:1.1rem 0 .2rem}
+.how-mini{list-style:none;margin:.2rem 0 0;padding:0;counter-reset:how}
+.how-mini li{counter-increment:how;display:flex;gap:.7rem;align-items:baseline;padding:.5rem 0;border-bottom:1px solid var(--line);font-size:.92rem}
+.how-mini li:last-child{border-bottom:0}
+.how-mini li::before{content:counter(how,decimal-leading-zero);font-family:var(--font-display);font-weight:700;color:var(--gold);font-size:.95rem;flex:none}
 .ad-note{background:#FFF6DE;border:1px solid #EAD189;border-radius:12px;padding:.7rem .8rem;font-size:.88rem}
 
 /* Pricing */
