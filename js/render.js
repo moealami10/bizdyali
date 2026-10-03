@@ -171,14 +171,14 @@
   }
 
   function footerHtml(biz) {
-    var sub = [biz.city, biz.hours].filter(Boolean).join(' · ');
-    var acts = [];
-    if (biz.whatsapp) acts.push('<a href="' + waLink(biz.whatsapp, 'Hello ' + biz.name + '! I found you on BizDyali.') + '" target="_blank" rel="noopener">' + ic('message-circle') + '<span>WhatsApp</span></a>');
-    else if (biz.phone) acts.push('<a href="tel:' + esc(String(biz.phone).replace(/\s/g, '')) + '">' + ic('phone') + '<span>Call</span></a>');
-    if (biz.address || biz.city) acts.push('<a href="' + mapsLink(biz) + '" target="_blank" rel="noopener">' + ic('navigation') + '<span>Directions</span></a>');
+    var sub = [biz.city, biz.hours].filter(Boolean).join(' \u00b7 ');
+    var links = [];
+    if (biz.whatsapp) links.push('<a href="' + waLink(biz.whatsapp, 'Hello ' + biz.name + '! I found you on BizDyali.') + '" target="_blank" rel="noopener">WhatsApp</a>');
+    else if (biz.phone) links.push('<a href="tel:' + esc(String(biz.phone).replace(/\s/g, '')) + '">Call</a>');
+    if (biz.address || biz.city) links.push('<a href="' + mapsLink(biz) + '" target="_blank" rel="noopener">Directions</a>');
     return '<footer class="bp-foot"><div class="wrap"><p class="fname" dir="auto">' + esc(biz.name) + '</p>' +
       (sub ? '<p class="fsub" dir="auto">' + esc(sub) + '</p>' : '') +
-      (acts.length ? '<div class="bp-foot-actions">' + acts.join('') + '</div>' : '') + '</div></footer>';
+      (links.length ? '<p class="flinks">' + links.join('<span aria-hidden="true"> \u00b7 </span>') + '</p>' : '') + '</div></footer>';
   }
 
   function barHtml(biz) {
