@@ -383,9 +383,11 @@
   };
 
   // ---- Media pipeline (orientation fix, WebP + sizes, blur placeholder).
-  // Storage still targets localStorage in this phase (same quotas as before);
-  // the IndexedDB move lands in a later checkpoint behind this same api.media
-  // interface. Photos may be legacy strings or {src, fx, fy} focal objects.
+  // IndexedDB checkpoint: new uploads can persist blobs as `idb:<id>` refs via
+  // opts.store='idb'; legacy data-URL/http refs keep working everywhere.
+  // resolveBusiness() swaps idb refs for object URLs before synchronous render.
+  // When a real backend arrives: replace idbPut/idbGet with upload/download
+  // calls and keep every other signature unchanged.
   var webpOK = null;
   function supportsWebp() {
     if (webpOK !== null) return Promise.resolve(webpOK);
@@ -449,13 +451,115 @@
     c.getContext('2d').drawImage(bitmap, 0, 0, c.width, c.height);
     return c;
   }
+  var idbSupported = (typeof indexedDB !== 'undefined');
+  var idbDb = null;
+  var idbUrlCache = {};
+  function idbOpen() {
+    return new Promise(function (resolve, reject) {
+      if (!idbSupported) return reject(new Error('IndexedDB unavailable.'));
+      if (idbDb) return resolve(idbDb);
+      try {
+        var req = indexedDB.open('bizdyali_media_v1', 1);
+        req.onupgradeneeded = function () {
+          if (!req.result.objectStoreNames.contains('photos')) req.result.createObjectStore('photos');
+        };
+        req.onsuccess = function () { idbDb = req.result; resolve(idbDb); };
+        req.onerror = function () { reject(new Error('Media store unavailable.')); };
+      } catch (e) { reject(new Error('Media store unavailable.')); }
+    });
+  }
+  function idbPut(blob, meta) {
+    return idbOpen().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        try {
+          var id = 'm_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+          var tx = db.transaction('photos', 'readwrite');
+          tx.objectStore('photos').put({ blob: blob, meta: meta || {}, createdAt: new Date().toISOString() }, id);
+          tx.oncomplete = function () { resolve(id); };
+          tx.onerror = function () { reject(new Error('Could not save photo.')); };
+        } catch (e) { reject(new Error('Could not save photo.')); }
+      });
+    });
+  }
+  function idbGet(id) {
+    return idbOpen().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        try {
+          var tx = db.transaction('photos', 'readonly');
+          var rq = tx.objectStore('photos').get(id);
+          rq.onsuccess = function () { rq.result ? resolve(rq.result) : reject(new Error('Photo not found.')); };
+          rq.onerror = function () { reject(new Error('Photo not found.')); };
+        } catch (e) { reject(new Error('Photo not found.')); }
+      });
+    });
+  }
+  function idbDelete(id) {
+    if (idbUrlCache[id]) { try { URL.revokeObjectURL(idbUrlCache[id]); } catch (e) {} delete idbUrlCache[id]; }
+    return idbOpen().then(function (db) {
+      return new Promise(function (resolve) {
+        try {
+          var tx = db.transaction('photos', 'readwrite');
+          tx.objectStore('photos').delete(id);
+          tx.oncomplete = function () { resolve(true); };
+          tx.onerror = function () { resolve(false); };
+        } catch (e) { resolve(false); }
+      });
+    });
+  }
+  function refKind(ref) {
+    var s = (ref && ref.src) || ref || '';
+    if (typeof s !== 'string' || !s) return 'none';
+    if (s.indexOf('idb:') === 0) return 'idb';
+    if (s.indexOf('data:') === 0) return 'data';
+    return 'http';
+  }
+  function resolveRef(ref) {
+    var kind = refKind(ref);
+    if (kind !== 'idb') return Promise.resolve(ref);
+    var src = typeof ref === 'string' ? ref : ref.src;
+    var id = src.slice(4);
+    if (idbUrlCache[id]) {
+      var cached = idbUrlCache[id];
+      return Promise.resolve(typeof ref === 'string' ? cached : { src: cached, fx: ref.fx, fy: ref.fy });
+    }
+    return idbGet(id).then(function (rec) {
+      var url = URL.createObjectURL(rec.blob);
+      idbUrlCache[id] = url;
+      return typeof ref === 'string' ? url : { src: url, fx: ref.fx, fy: ref.fy };
+    });
+  }
+  function resolveBusiness(biz) {
+    // Deep clone with every photo ref resolved to a directly usable URL.
+    // Legacy data-URL/http refs pass through untouched.
+    var clone = JSON.parse(JSON.stringify(biz));
+    var jobs = [];
+    function walkPhoto(getter, setter) {
+      var ref = getter();
+      if (!ref) return;
+      jobs.push(resolveRef(ref).then(function (url) { setter(url); }, function () { /* keep original ref */ }));
+    }
+    walkPhoto(function () { return clone.logo; }, function (u) { clone.logo = u; });
+    walkPhoto(function () { return clone.cover; }, function (u) { clone.cover = u; });
+    (clone.items || []).forEach(function (it) {
+      (it.photos || []).forEach(function (p, i) {
+        walkPhoto(function () { return it.photos[i]; }, function (u) { it.photos[i] = u; });
+      });
+    });
+    return Promise.all(jobs).then(function () { return clone; });
+  }
   api.media = {
     supportsWebp: supportsWebp,
+    idbSupported: function () { return idbSupported; },
+    idbPut: idbPut, idbGet: idbGet, idbDelete: idbDelete,
+    refKind: refKind, resolveRef: resolveRef, resolveBusiness: resolveBusiness,
     // Full pipeline: {thumb, full, placeholder, width, height, type}.
     // thumb ~480px, full ~1400px (cover callers pass maxFull 1800).
+    // opts.store='idb' persists the full blob and returns ref:'idb:<id>'
+    // instead of a data URL (thumb stays inline for instant lists).
     processImage: function (file, opts) {
       opts = opts || {};
       var maxFull = opts.maxFull || 1400;
+      var useIdb = opts.store === 'idb' && idbSupported;
       return new Promise(function (resolve, reject) {
         if (!file || !file.type.match(/^image\//)) return reject(new Error('Not an image file.'));
         supportsWebp().then(function (useWebp) {
@@ -470,12 +574,18 @@
               return canvasBlob(thumbC, useWebp).then(function (tb) {
                 return blobToDataURL(fb).then(function (full) {
                   return blobToDataURL(tb).then(function (thumb) {
-                    resolve({
+                    var out = {
                       thumb: thumb, full: full,
                       placeholder: tiny.toDataURL('image/jpeg', 0.6),
                       width: fullC.width, height: fullC.height,
                       type: useWebp ? 'image/webp' : 'image/jpeg'
-                    });
+                    };
+                    if (!useIdb) { resolve(out); return; }
+                    idbPut(fb, { w: fullC.width, h: fullC.height, type: out.type }).then(function (id) {
+                      out.ref = 'idb:' + id;
+                      delete out.full;
+                      resolve(out);
+                    }, reject);
                   });
                 });
               });

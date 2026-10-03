@@ -181,37 +181,57 @@
     biz = null; load(null);
   });
 
-  // ---- Branding tab ----
+  // ---- Branding tab (uploads prefer IndexedDB blobs, data-URL fallback) ----
+  function dropRef(ref) {
+    if (BizDyali.media.refKind(ref) === 'idb') {
+      var id = String((ref && ref.src) || ref).slice(4);
+      BizDyali.media.idbDelete(id);
+    }
+  }
+  function uploadImage(file, maxFull, done) {
+    var useIdb = BizDyali.media.idbSupported();
+    BizDyali.media.processImage(file, { maxFull: maxFull, store: useIdb ? 'idb' : undefined }).then(function (o) {
+      done(o.ref ? { src: o.ref, thumb: o.thumb } : o.full);
+    }).catch(function (e2) {
+      if (useIdb) {
+        BizDyali.media.processImage(file, { maxFull: maxFull }).then(function (o) { done(o.full); }).catch(function (e3) { showErr(e3.message); });
+      } else showErr(e2.message);
+    });
+  }
+  function resolvePreview(img, ref) {
+    if (!ref) { img.hidden = true; return; }
+    BizDyali.media.resolveRef(ref).then(function (u) {
+      img.src = (u && u.src) || u; img.hidden = false;
+    }, function () { img.hidden = true; });
+  }
   function fillBranding() {
-    if (biz.logo) { $('d_logoPrev').src = biz.logo; $('d_logoPrev').hidden = false; }
-    else $('d_logoPrev').hidden = true;
-    if (biz.cover) { $('d_coverPrev').src = biz.cover; $('d_coverPrev').hidden = false; }
-    else $('d_coverPrev').hidden = true;
+    resolvePreview($('d_logoPrev'), biz.logo);
+    resolvePreview($('d_coverPrev'), biz.cover);
   }
   $('d_logo').addEventListener('change', function (e) {
     var f = e.target.files[0]; if (!f) return;
-    BizDyali.media.fileToImageDataURL(f, 600).then(function (url) {
-      biz.logo = url;
+    uploadImage(f, 600, function (ref) {
+      dropRef(biz.logo); biz.logo = ref;
       if (persist()) {
         BizDyali.logEvent('image_uploaded', { actor: 'owner', actorName: user.name, businessId: biz.id, businessName: biz.name, ownerId: user.id, details: 'Logo updated' });
         fillBranding();
       }
-    }).catch(function (e2) { showErr(e2.message); });
+    });
     e.target.value = '';
   });
   $('d_cover').addEventListener('change', function (e) {
     var f = e.target.files[0]; if (!f) return;
-    BizDyali.media.fileToImageDataURL(f, 1400).then(function (url) {
-      biz.cover = url;
+    uploadImage(f, 1400, function (ref) {
+      dropRef(biz.cover); biz.cover = ref;
       if (persist()) {
         BizDyali.logEvent('image_uploaded', { actor: 'owner', actorName: user.name, businessId: biz.id, businessName: biz.name, ownerId: user.id, details: 'Cover image updated' });
         fillBranding();
       }
-    }).catch(function (e2) { showErr(e2.message); });
+    });
     e.target.value = '';
   });
-  $('removeLogo').addEventListener('click', function () { biz.logo = null; if (persist()) fillBranding(); });
-  $('removeCover').addEventListener('click', function () { biz.cover = null; if (persist()) fillBranding(); });
+  $('removeLogo').addEventListener('click', function () { dropRef(biz.logo); biz.logo = null; if (persist()) fillBranding(); });
+  $('removeCover').addEventListener('click', function () { dropRef(biz.cover); biz.cover = null; if (persist()) fillBranding(); });
 
   // ---- Catalog tab ----
   document.querySelectorAll('[data-filter]').forEach(function (p) {
@@ -244,6 +264,7 @@
        ['✏️', 'Edit', function () { openEditor(it.kind, it.id); }],
        ['🗑️', 'Delete', function () {
           if (confirm('Delete "' + it.name + '"?')) {
+            (it.photos || []).forEach(function (ph) { dropRef(ph && ph.src ? ph.src : ph); });
             biz.items = biz.items.filter(function (x) { return x.id !== it.id; });
             renumber();
             if (persist(true)) {
@@ -278,33 +299,83 @@
       edPhotos = (ex.photos || []).slice(); edVideo = ex.video || null;
       $('d_it_name').value = ex.name; $('d_it_desc').value = ex.description || '';
       $('d_it_price').value = ex.price == null ? '' : ex.price;
-    } else { $('d_it_name').value = ''; $('d_it_desc').value = ''; $('d_it_price').value = ''; }
+      $('d_it_section').value = ex.section || ''; $('d_it_badge').value = ex.badge || '';
+      $('d_it_duration').value = ex.duration || '';
+    } else { $('d_it_name').value = ''; $('d_it_desc').value = ''; $('d_it_price').value = ''; $('d_it_section').value = ''; $('d_it_badge').value = ''; $('d_it_duration').value = ''; }
     $('d_editorTitle').textContent = (ex ? 'Edit ' : 'Add ') + kind;
     $('d_nameLabel').textContent = (kind === 'product' ? 'Product' : 'Service') + ' name *';
     $('d_editor').hidden = false; renderEdMedia();
     $('d_it_name').focus();
   }
+  function edThumb(p) {
+    if (p && typeof p === 'object') return p.thumb || p.src || '';
+    return p || '';
+  }
+  var focalIdx = -1;
   function renderEdMedia() {
     var t = $('d_it_thumbs'); t.innerHTML = '';
+    $('d_focalBox').hidden = true; focalIdx = -1;
     edPhotos.forEach(function (p, i) {
       var d = document.createElement('div'); d.className = 'thumb-x';
-      var img = document.createElement('img'); img.src = p; img.alt = '';
-      img.style.cssText = 'width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--line)';
+      var img = document.createElement('img'); img.src = edThumb(p); img.alt = '';
+      img.style.cssText = 'width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--line);cursor:crosshair';
+      img.title = 'Tap to set focal point';
+      img.addEventListener('click', function () { openFocal(i); });
       var x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.title = 'Remove photo';
-      x.addEventListener('click', function () { edPhotos.splice(i, 1); renderEdMedia(); });
+      x.addEventListener('click', function (ev2) {
+        ev2.stopPropagation();
+        var gone = edPhotos.splice(i, 1)[0];
+        dropRef(gone && gone.src ? gone.src : gone);
+        renderEdMedia();
+      });
       d.appendChild(img); d.appendChild(x); t.appendChild(d);
     });
     $('d_it_vhint').textContent = edVideo ? 'Video attached ✓' : 'No video attached.';
   }
+  function openFocal(i) {
+    var p = edPhotos[i];
+    if (!p) return;
+    focalIdx = i;
+    $('d_focalBox').hidden = false;
+    BizDyali.media.resolveRef(p.src || p).then(function (u) {
+      var img = $('d_focalImg');
+      delete img.dataset.ready;
+      img.onload = function () { img.dataset.ready = '1'; placeDot(); };
+      img.onerror = function () { showErr('Could not load that photo for focal preview.'); };
+      img.src = (u && u.src) || u;
+      if (img.complete && img.naturalWidth) img.dataset.ready = '1';
+    });
+    function placeDot() { placeDotAt(p); }
+  }
+  function placeDotAt(p) {
+    var dot = $('d_focalDot');
+    var o = BizDyali.media.normalizePhoto(p) || { fx: 50, fy: 50 };
+    dot.style.left = o.fx + '%'; dot.style.top = o.fy + '%';
+  }
+  $('d_focalImg').addEventListener('click', function (e) {
+    if (focalIdx < 0 || !edPhotos[focalIdx]) return;
+    if (!e.target.dataset.ready) { showErr('Photo still loading — try again in a moment.'); return; }
+    var r = e.target.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    var fx = Math.round((e.clientX - r.left) / r.width * 100);
+    var fy = Math.round((e.clientY - r.top) / r.height * 100);
+    var cur = edPhotos[focalIdx];
+    var src = (cur && cur.src) || cur;
+    edPhotos[focalIdx] = { src: src, thumb: edThumb(cur), fx: fx, fy: fy };
+    placeDotAt(edPhotos[focalIdx]);
+  });
+  $('d_focalDone').addEventListener('click', function () { $('d_focalBox').hidden = true; focalIdx = -1; renderEdMedia(); });
   $('d_addProduct').addEventListener('click', function () { openEditor('product'); });
   $('d_addService').addEventListener('click', function () { openEditor('service'); });
   $('d_it_cancel').addEventListener('click', function () { $('d_editor').hidden = true; editingId = null; });
   $('d_it_photos').addEventListener('change', function (e) {
+    var useIdb = BizDyali.media.idbSupported();
     var files = Array.prototype.slice.call(e.target.files || []).slice(0, 4 - edPhotos.length);
     (function next() {
       var f = files.shift(); if (!f) { e.target.value = ''; return; }
-      BizDyali.media.fileToImageDataURL(f, 900).then(function (url) {
-        edPhotos.push(url); renderEdMedia(); next();
+      BizDyali.media.processImage(f, { maxFull: 900, store: useIdb ? 'idb' : undefined }).then(function (o) {
+        edPhotos.push(o.ref ? { src: o.ref, thumb: o.thumb, fx: 50, fy: 50 } : o.full);
+        renderEdMedia(); next();
       }).catch(function (e2) { showErr(e2.message); next(); });
     })();
   });
@@ -327,11 +398,12 @@
       var o = { actor: base.actor, actorName: base.actorName, businessId: base.businessId, businessName: base.businessName, ownerId: base.ownerId, details: details };
       BizDyali.logEvent(type, o);
     }
+    var extra = { section: $('d_it_section').value.trim(), badge: $('d_it_badge').value, duration: $('d_it_duration').value.trim() };
     if (editingId) {
       var it = prev;
-      if (it) { it.name = name; it.description = $('d_it_desc').value.trim(); it.price = price; it.photos = edPhotos; it.video = edVideo; }
+      if (it) { it.name = name; it.description = $('d_it_desc').value.trim(); it.price = price; it.photos = edPhotos; it.video = edVideo; it.section = extra.section; it.badge = extra.badge; it.duration = extra.duration; }
     } else {
-      biz.items.push({ id: 'it_' + Date.now().toString(36) + Math.floor(Math.random() * 999), kind: edKind, name: name, description: $('d_it_desc').value.trim(), price: price, photos: edPhotos, video: edVideo, order: biz.items.length });
+      biz.items.push({ id: 'it_' + Date.now().toString(36) + Math.floor(Math.random() * 999), kind: edKind, name: name, description: $('d_it_desc').value.trim(), price: price, photos: edPhotos, video: edVideo, order: biz.items.length, section: extra.section, badge: extra.badge, duration: extra.duration });
     }
     $('d_editor').hidden = true; editingId = null;
     if (persist()) {
@@ -341,6 +413,115 @@
       if (edVideo && !prevHadVideo) itemLog('video_uploaded', name + ': video attached');
       renderItems();
     }
+  });
+
+  // ---- Design, hours & QR tab ----
+  var designLook = '', designAccentMode = 'auto';
+  function fillDesign() {
+    var th = biz.theme || {};
+    designLook = th.look || '';
+    designAccentMode = th.accent ? 'custom' : 'auto';
+    document.querySelectorAll('#d_lookPills .pill').forEach(function (b) {
+      b.setAttribute('aria-pressed', (b.dataset.look || '') === designLook);
+    });
+    document.querySelectorAll('#d_accentPills .pill').forEach(function (b) {
+      b.setAttribute('aria-pressed', b.dataset.accentmode === designAccentMode);
+    });
+    $('d_customColorWrap').hidden = designAccentMode !== 'custom';
+    if (th.accent) $('d_accentColor').value = th.accent;
+    $('d_lang').value = biz.lang || '';
+    $('d_mode').value = (th.mode === 'dark') ? 'dark' : '';
+    $('d_basket').value = th.basket ? 'on' : '';
+    $('previewDesignBtn').href = BizDyali.publicUrl(biz.slug) + '&preview=1';
+    buildHoursEditor();
+  }
+  document.querySelectorAll('#d_lookPills .pill').forEach(function (b) {
+    b.addEventListener('click', function () {
+      designLook = b.dataset.look || '';
+      document.querySelectorAll('#d_lookPills .pill').forEach(function (q) { q.setAttribute('aria-pressed', q === b); });
+    });
+  });
+  document.querySelectorAll('#d_accentPills .pill').forEach(function (b) {
+    b.addEventListener('click', function () {
+      designAccentMode = b.dataset.accentmode;
+      document.querySelectorAll('#d_accentPills .pill').forEach(function (q) { q.setAttribute('aria-pressed', q === b); });
+      $('d_customColorWrap').hidden = designAccentMode !== 'custom';
+    });
+  });
+  $('saveDesignBtn').addEventListener('click', function () {
+    hideMsgs();
+    var th = biz.theme || {};
+    if (designLook) th.look = designLook; else delete th.look;
+    if (designAccentMode === 'custom' && /^#[0-9a-f]{6}$/i.test($('d_accentColor').value)) th.accent = $('d_accentColor').value;
+    else delete th.accent;
+    var mode = $('d_mode').value;
+    if (mode === 'dark') th.mode = 'dark'; else delete th.mode;
+    if ($('d_basket').value === 'on') th.basket = true; else delete th.basket;
+    if (Object.keys(th).length) biz.theme = th; else delete biz.theme;
+    biz.lang = $('d_lang').value || undefined;
+    if (!biz.lang) delete biz.lang;
+    if (persist()) {
+      BizDyali.logEvent('admin_action', { actor: 'owner', actorName: user.name, businessId: biz.id, businessName: biz.name, ownerId: user.id, details: 'Updated design settings' });
+      showOk('Design saved ✓ — preview your page to see it.');
+    }
+  });
+  var WEEKDAYS = [['mon', 'Monday'], ['tue', 'Tuesday'], ['wed', 'Wednesday'], ['thu', 'Thursday'], ['fri', 'Friday'], ['sat', 'Saturday'], ['sun', 'Sunday']];
+  function buildHoursEditor() {
+    var host = $('d_hoursWeek'); host.innerHTML = '';
+    var hw = biz.hoursWeek || {};
+    WEEKDAYS.forEach(function (d) {
+      var key = d[0], label = d[1];
+      var ranges = hw[key] || [];
+      var open = ranges.length > 0;
+      var o = open ? ranges[0][0] : '09:00';
+      var c = open ? ranges[0][1] : '18:00';
+      var row = document.createElement('div');
+      row.className = 'two-col';
+      row.innerHTML = '<label class="field" style="font-size:.85rem"><span><input type="checkbox" data-hw-day="' + key + '"' + (open ? ' checked' : '') + ' /> ' + label + '</span></label>' +
+        '<span style="display:flex;gap:.4rem;align-items:center"><input type="time" data-hw-open="' + key + '" value="' + o + '" aria-label="' + label + ' opens" />–<input type="time" data-hw-close="' + key + '" value="' + c + '" aria-label="' + label + ' closes" /></span>';
+      host.appendChild(row);
+    });
+  }
+  $('saveHoursBtn').addEventListener('click', function () {
+    hideMsgs();
+    var hw = {};
+    WEEKDAYS.forEach(function (d) {
+      var key = d[0];
+      var on = host_query(key);
+      if (on) {
+        var o = document.querySelector('[data-hw-open="' + key + '"]').value || '09:00';
+        var c = document.querySelector('[data-hw-close="' + key + '"]').value || '18:00';
+        hw[key] = [[o, c]];
+      }
+    });
+    function host_query(k) { var el = document.querySelector('[data-hw-day="' + k + '"]'); return el && el.checked; }
+    if (Object.keys(hw).length) biz.hoursWeek = hw; else delete biz.hoursWeek;
+    if (persist()) {
+      BizDyali.logEvent('info_changed', { actor: 'owner', actorName: user.name, businessId: biz.id, businessName: biz.name, ownerId: user.id, details: 'Updated structured opening hours' });
+      showOk('Hours saved ✓ — your “Open now” badge is live.');
+    }
+  });
+  $('clearHoursBtn').addEventListener('click', function () {
+    delete biz.hoursWeek;
+    if (persist()) { buildHoursEditor(); showOk('Structured hours cleared — free-text hours apply.'); }
+  });
+  $('qrPosterBtn').addEventListener('click', function () {
+    if (typeof qrcode === 'undefined') return showErr('QR library not loaded. Check your connection and retry.');
+    var url = BizDyali.publicUrl(biz.slug);
+    var qr = qrcode(0, 'M');
+    qr.addData(url);
+    qr.make();
+    var img = qr.createDataURL(8, 8);
+    var w = window.open('', '_blank');
+    if (!w) return showErr('Please allow pop-ups to open the poster.');
+    w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>QR poster — ' + biz.name.replace(/</g, '&lt;') + '</title>' +
+      '<style>body{font-family:Georgia,serif;text-align:center;padding:48px;color:#101814}h1{font-size:42px;margin:0 0 8px}.sub{color:#555;margin:0 0 24px}img{width:320px;height:320px}.url{font-family:monospace;font-size:13px;color:#555;margin-top:16px;word-break:break-all}.bar{width:120px;height:4px;background:#0A6B4F;margin:24px auto}@media print{.noprint{display:none}}</style></head><body>' +
+      '<div class="bar"></div><h1>' + biz.name.replace(/</g, '&lt;') + '</h1>' +
+      '<p class="sub">' + (biz.city || '').replace(/</g, '&lt;') + '</p>' +
+      '<img src="' + img + '" alt="QR code" /><p class="url">' + url.replace(/</g, '&lt;') + '</p>' +
+      '<p class="noprint"><button onclick="window.print()">Print poster</button> <a href="' + img + '" download="bizdyali-qr.png">Download QR PNG</a></p></body></html>');
+    w.document.close();
+    BizDyali.logEvent('admin_action', { actor: 'owner', actorName: user.name, businessId: biz.id, businessName: biz.name, ownerId: user.id, details: 'Opened QR poster' });
   });
 
   // ---- Tabs + switcher ----
@@ -357,7 +538,7 @@
     fillAll();
   });
 
-  function fillAll() { hideMsgs(); renderTrial(); renderOverview(); fillInfo(); fillBranding(); renderItems(); }
+  function fillAll() { hideMsgs(); renderTrial(); renderOverview(); fillInfo(); fillBranding(); renderItems(); fillDesign(); }
 
   load(params.get('biz'));
 })();

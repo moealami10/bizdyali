@@ -79,7 +79,11 @@
         '<div class="btn-row" style="justify-content:center;margin-top:1rem"><a class="btn btn-primary" href="auth.html">Create Your Free Business Page</a></div></div>';
       return;
     }
-    BizRender.renderPublicPage(biz, mount, { chrome: true, seo: true });
+    BizDyali.media.resolveBusiness(biz).then(function (ready) {
+      BizRender.renderPublicPage(ready, mount, { chrome: true, seo: true });
+    }, function () {
+      BizRender.renderPublicPage(biz, mount, { chrome: true, seo: true });
+    });
   })();
   </script>
 </body>

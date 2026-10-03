@@ -12,6 +12,12 @@
 | `biz.hoursWeek` | `{ mon: [[open, close], …], … }` | no | null → free-text `hours` | Phase 2: powers the live "Open now" badge. `"HH:MM"` 24h, business tz. |
 | `item.section` | string | no | null | Phase 2: groups catalog into sections / filter chips. |
 | `item.badge` | `popular \| new` (or free text) | no | null | Phase 2: tasteful badge; never invented by the platform. |
+| `item.duration` | string (e.g. `"45 min"`) | no | null | Service duration, shown beside the price. |
+| `item.section` | string | no | null | (already listed above; groups catalog + filter chips) |
+| `biz.testimonials` | `[{text, author?}]` (max 3 shown) | no | none → section hidden | Owner-entered quotes only; never fabricated. |
+| `biz.trust` | string[≤4] | no | none → hidden | Workshop trust strip (warranty, turnaround…). |
+| `biz.theme.basket` | boolean | no | off | Experimental WhatsApp order basket. |
+| `biz.theme.mode` | `light \| dark` | no | light | Dark surfaces (Atelier). |
 | photo focal | `{ src, fx, fy }` (`fx/fy` 0–100) | no | `{src, 50, 50}` | Legacy plain-string photos keep rendering unchanged. Applied as `object-position`. |
 
 All fields are optional. Old businesses (plain-string photos, no `theme`/`lang`) render exactly as today — verified by the legacy smoke test.

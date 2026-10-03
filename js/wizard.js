@@ -43,6 +43,7 @@
     $('f_hours').value = draft.hours || '';
     $('f_facebook').value = draft.facebook || '';
     $('f_instagram').value = draft.instagram || '';
+    $('f_lang').value = draft.lang || '';
     if (draft.logo) { $('logoPreview').src = draft.logo; $('logoPreview').hidden = false; }
     if (draft.cover) { $('coverPreview').src = draft.cover; $('coverPreview').hidden = false; }
     refreshPills(); renderItems();
@@ -61,6 +62,8 @@
       draft.hours = $('f_hours').value.trim();
       draft.facebook = $('f_facebook').value.trim();
       draft.instagram = $('f_instagram').value.trim();
+      var langVal = $('f_lang').value;
+      if (langVal) draft.lang = langVal; else delete draft.lang;
     }
   }
 
@@ -206,8 +209,9 @@
       $('it_name').value = existing.name;
       $('it_desc').value = existing.description || '';
       $('it_price').value = existing.price == null ? '' : existing.price;
+      $('it_section').value = existing.section || ''; $('it_badge').value = existing.badge || '';
     } else {
-      $('it_name').value = ''; $('it_desc').value = ''; $('it_price').value = '';
+      $('it_name').value = ''; $('it_desc').value = ''; $('it_price').value = ''; $('it_section').value = ''; $('it_badge').value = '';
     }
     $('editorTitle').textContent = (existing ? 'Edit ' : 'Add ') + kind;
     $('itemNameLabel').firstChild.textContent = (kind === 'product' ? 'Product' : 'Service') + ' name * ';
@@ -251,14 +255,16 @@
     if (name.length < 2) { showErr('Please give your ' + kind + ' a name.'); return; }
     var priceRaw = $('it_price').value;
     var price = priceRaw === '' ? null : Math.max(0, Number(priceRaw));
+    var sectionVal = $('it_section').value.trim();
+    var badgeVal = $('it_badge').value;
     if (editingItemId) {
       var it = draft.items.find(function (x) { return x.id === editingItemId; });
-      if (it) { it.name = name; it.description = $('it_desc').value.trim(); it.price = price; it.photos = editorPhotos; it.video = editorVideo; }
+      if (it) { it.name = name; it.description = $('it_desc').value.trim(); it.price = price; it.photos = editorPhotos; it.video = editorVideo; it.section = sectionVal; it.badge = badgeVal; }
     } else {
       draft.items.push({
         id: 'it_' + Date.now().toString(36) + Math.floor(Math.random() * 999),
         kind: kind, name: name, description: $('it_desc').value.trim(),
-        price: price, photos: editorPhotos, video: editorVideo, order: draft.items.length
+        price: price, photos: editorPhotos, video: editorVideo, order: draft.items.length, section: sectionVal, badge: badgeVal
       });
     }
     $('itemEditor').hidden = true; editingItemId = null;
@@ -288,7 +294,7 @@
   });
 
   // Autosave text inputs (light)
-  ['f_name', 'f_category', 'f_description', 'f_phone', 'f_whatsapp', 'f_address', 'f_city', 'f_hours', 'f_facebook', 'f_instagram']
+  ['f_name', 'f_category', 'f_description', 'f_phone', 'f_whatsapp', 'f_address', 'f_city', 'f_hours', 'f_facebook', 'f_instagram', 'f_lang']
     .forEach(function (id) {
       $(id).addEventListener('input', function () {
         clearTimeout(window.__dz);

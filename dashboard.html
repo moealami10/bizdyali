@@ -52,6 +52,7 @@
         <button class="tab" data-tab="info" role="tab" aria-selected="false">Business info</button>
         <button class="tab" data-tab="branding" role="tab" aria-selected="false">Logo &amp; cover</button>
         <button class="tab" data-tab="catalog" role="tab" aria-selected="false">Products &amp; services</button>
+        <button class="tab" data-tab="design" role="tab" aria-selected="false">Design &amp; hours</button>
       </div>
       <div id="dashErr" class="form-err" hidden></div>
       <div id="dashOk" class="form-ok" hidden></div>
@@ -152,10 +153,23 @@
             <h3 id="d_editorTitle">Add item</h3>
             <div class="form-grid">
               <label class="field"><span id="d_nameLabel">Name *</span><input type="text" id="d_it_name" /></label>
+              <div class="two-col">
+                <label class="field">Section (groups items)<input type="text" id="d_it_section" placeholder="e.g. Plats" /></label>
+                <label class="field">Badge<select id="d_it_badge"><option value="">None</option><option value="popular">Popular</option><option value="new">New</option></select></label>
+              </div>
+              <label class="field">Duration (services, optional)<input type="text" id="d_it_duration" placeholder="e.g. 45 min" /></label>
               <label class="field">Description<textarea id="d_it_desc" style="min-height:64px"></textarea></label>
               <label class="field">Price in MAD (optional)<input type="number" id="d_it_price" min="0" step="1" /></label>
               <label class="field">Photos (up to 4)<input type="file" id="d_it_photos" accept="image/*" multiple /></label>
               <div class="thumbs" id="d_it_thumbs"></div>
+              <div id="d_focalBox" hidden style="border:1px solid var(--line);border-radius:12px;padding:.7rem">
+                <p style="font-size:.85rem;font-weight:700;margin:0 0 .4rem">Focal point — tap where the important part is <span class="hint">(faces, dish)</span></p>
+                <div style="position:relative;display:inline-block;max-width:100%">
+                  <img id="d_focalImg" alt="" style="max-width:100%;border-radius:10px;cursor:crosshair;display:block" />
+                  <span id="d_focalDot" style="position:absolute;width:16px;height:16px;margin:-8px;border-radius:50%;border:2px solid #fff;background:var(--green);box-shadow:0 1px 4px rgba(0,0,0,.4);pointer-events:none"></span>
+                </div>
+                <div class="btn-row"><button class="link-btn" id="d_focalDone" type="button">Done</button></div>
+              </div>
               <label class="field">Video (optional, max 10 MB)<input type="file" id="d_it_video" accept="video/*" /><span class="hint" id="d_it_vhint">No video attached.</span></label>
             </div>
             <div class="btn-row">
@@ -165,10 +179,78 @@
           </div>
         </div>
       </section>
+
+      <!-- DESIGN & HOURS -->
+      <section class="dash-panel" data-panel="design">
+        <div class="card">
+          <h2 class="page-title" style="font-size:1.2rem">Design</h2>
+          <p class="page-sub">The look is chosen automatically from your category and photos. Override anything below — changes show on your page immediately.</p>
+          <div class="form-grid">
+            <div class="field">
+              <span style="font-weight:600;font-size:.9rem">Look</span>
+              <span class="pills" id="d_lookPills" role="group" aria-label="Look">
+                <button type="button" class="pill" data-look="" aria-pressed="true">Auto</button>
+                <button type="button" class="pill" data-look="editorial" aria-pressed="false">Editorial</button>
+                <button type="button" class="pill" data-look="atelier" aria-pressed="false">Atelier</button>
+                <button type="button" class="pill" data-look="boutique" aria-pressed="false">Boutique</button>
+                <button type="button" class="pill" data-look="workshop" aria-pressed="false">Workshop</button>
+                <button type="button" class="pill" data-look="market" aria-pressed="false">Market</button>
+              </span>
+            </div>
+            <div class="field">
+              <span style="font-weight:600;font-size:.9rem">Accent color</span>
+              <span class="pills" id="d_accentPills" role="group" aria-label="Accent">
+                <button type="button" class="pill" data-accentmode="auto" aria-pressed="true">Auto</button>
+                <button type="button" class="pill" data-accentmode="custom" aria-pressed="false">Custom…</button>
+              </span>
+            </div>
+            <label class="field" id="d_customColorWrap" hidden>Custom accent
+              <input type="color" id="d_accentColor" value="#0A6B4F" style="height:48px;padding:.3rem" />
+            </label>
+            <label class="field">Page language
+              <select id="d_lang">
+                <option value="">Auto (from your text)</option>
+                <option value="en">English</option>
+                <option value="fr">Français</option>
+                <option value="ar">العربية</option>
+              </select>
+            </label>
+            <label class="field">Dark mode (Atelier look)
+              <select id="d_mode">
+                <option value="">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </label>
+            <label class="field">WhatsApp ordering
+              <select id="d_basket">
+                <option value="">Off — simple enquiry links</option>
+                <option value="on">On — customers build an order (experimental)</option>
+              </select>
+            </label>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="saveDesignBtn" type="button">Save design</button>
+            <a class="btn btn-ghost" id="previewDesignBtn" href="#" target="_blank" rel="noopener">Preview page →</a>
+          </div>
+        </div>
+        <div class="card">
+          <h2 class="page-title" style="font-size:1.2rem">Opening hours</h2>
+          <p class="page-sub">Fill the days you open to show a live “Open now” badge. Leave everything blank to keep showing your free-text hours only.</p>
+          <div class="form-grid" id="d_hoursWeek"></div>
+          <div class="btn-row"><button class="btn btn-primary" id="saveHoursBtn" type="button">Save hours</button>
+          <button class="link-btn danger" id="clearHoursBtn" type="button">Clear structured hours</button></div>
+        </div>
+        <div class="card">
+          <h2 class="page-title" style="font-size:1.2rem">QR poster</h2>
+          <p class="page-sub">A printable poster with a QR code to your page — made for your storefront window.</p>
+          <div class="btn-row"><button class="btn btn-ghost" id="qrPosterBtn" type="button">Open QR poster →</button></div>
+        </div>
+      </section>
     </div>
   </main>
 
   <script src="js/store.js"></script>
+  <script src="js/vendor/qrcode.min.js"></script>
   <script src="js/dashboard.js"></script>
 </body>
 </html>

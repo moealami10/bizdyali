@@ -82,6 +82,14 @@
               <input type="url" id="f_instagram" placeholder="https://instagram.com/…" />
             </label>
           </div>
+          <label class="field">Page language
+            <select id="f_lang">
+              <option value="">Auto (from your text)</option>
+              <option value="en">English</option>
+              <option value="fr">Français</option>
+              <option value="ar">العربية</option>
+            </select>
+          </label>
         </div>
         <div class="btn-row"><button class="btn btn-primary btn-lg" data-next>Continue →</button></div>
       </div>
@@ -140,6 +148,10 @@
             <label class="field">Price in MAD (optional)
               <input type="number" id="it_price" min="0" step="1" placeholder="e.g. 15" />
             </label>
+            <div class="two-col">
+              <label class="field">Section (optional)<input type="text" id="it_section" placeholder="e.g. Plats" /></label>
+              <label class="field">Badge<select id="it_badge"><option value="">None</option><option value="popular">Popular</option><option value="new">New</option></select></label>
+            </div>
             <label class="field">Photos (up to 4)
               <input type="file" id="it_photos" accept="image/*" multiple />
             </label>
