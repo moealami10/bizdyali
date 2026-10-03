@@ -105,16 +105,13 @@
 .btn-quiet:hover{border-color:var(--bp-ink)}
 
 /* Fancy no-cover panel: deep green identity plate, gold ring monogram */
-.bp-cover--empty{height:clamp(300px,62vw,440px);display:flex;align-items:center;overflow:hidden;background:
+.bp-cover--empty{height:clamp(300px,62vw,440px);overflow:hidden;background:
   radial-gradient(80% 120% at 90% 0%,rgba(231,178,60,.14),transparent 55%),
   radial-gradient(60% 100% at 5% 100%,rgba(255,255,255,.05),transparent 60%),
   repeating-linear-gradient(135deg,rgba(255,255,255,.04) 0 2px,transparent 2px 16px),
   linear-gradient(125deg,#0C6B4F,var(--bp-deep) 68%)}
-.bp-empty-in{position:relative;z-index:1;width:min(var(--bp-max),100% - 2.5rem);margin-inline:auto;display:flex;align-items:center;gap:1.4rem}
-.bp-empty-mono{width:104px;height:104px;flex:none;border-radius:50%;display:grid;place-items:center;font-family:var(--bp-display);font-style:italic;font-size:2.6rem;color:var(--bp-goldbright);border:1.5px solid rgba(231,178,60,.65);outline:1px solid rgba(231,178,60,.3);outline-offset:6px;background:rgba(0,0,0,.18)}
-.bp-empty-tx .cat{font-size:.74rem;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:var(--bp-goldbright)}
-.bp-empty-tx .city{margin-top:.35rem;font-family:var(--bp-display);font-style:italic;font-size:1.3rem;color:rgba(255,255,255,.85)}
-.bp-wm{position:absolute;right:-1rem;bottom:-3.2rem;font-family:var(--bp-display);font-style:italic;font-weight:600;font-size:clamp(10rem,32vw,22rem);line-height:1;color:rgba(255,255,255,.07);user-select:none;pointer-events:none}
+.bp-empty-in{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding-bottom:5rem;pointer-events:none}
+.bp-empty-mono{width:112px;height:112px;flex:none;border-radius:50%;display:grid;place-items:center;font-family:var(--bp-display);font-style:italic;font-size:2.7rem;color:var(--bp-goldbright);border:1.5px solid rgba(231,178,60,.65);outline:1px solid rgba(231,178,60,.3);outline-offset:6px;background:rgba(0,0,0,.18)}
 
 /* ---------- Sections: open editorial, hairlines ---------- */
 .bp-sec{width:min(var(--bp-max),100% - 2.5rem);margin:clamp(2.6rem,6vw,4.2rem) auto 0}

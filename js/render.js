@@ -51,10 +51,7 @@
   function heroHtml(biz, chrome) {
     var coverInner = biz.cover
       ? '<img class="ld" src="' + biz.cover + '" alt="" fetchpriority="high" decoding="async" />'
-      : '<div class="bp-empty-in"><div class="bp-empty-mono" aria-hidden="true">' + esc(initials(biz.name)) + '</div>' +
-        '<div class="bp-empty-tx"><p class="cat">' + esc(biz.category || 'Local business') + '</p>' +
-        (biz.city ? '<p class="city">' + esc(biz.city) + '</p>' : '') + '</div></div>' +
-        '<span class="bp-wm" aria-hidden="true">' + esc(initials(biz.name)) + '</span>';
+      : '<div class="bp-empty-in" aria-hidden="true"><div class="bp-empty-mono">' + esc(initials(biz.name)) + '</div></div>';
     var cover = '<div class="bp-cover' + (biz.cover ? '' : ' bp-cover--empty') + '">' + coverInner + '<div class="bp-scrim"></div>' +
       '<div class="bp-hero-in wrap">' +
       '<p class="bp-eyebrow"><span class="nw">' + esc(biz.category || 'Local business') + '</span>' +
