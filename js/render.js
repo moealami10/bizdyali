@@ -23,9 +23,9 @@
     var q = [biz.address, biz.city].filter(Boolean).join(', ');
     return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q || biz.city || biz.name);
   }
-  function initials(name) {
-    var words = String(name || '').trim().split(/\s+/).filter(Boolean);
-    return ((words[0] || 'B').charAt(0) + (words[1] ? words[1].charAt(0) : '')).toUpperCase();
+  function logoHtml(biz, cls) {
+    if (!biz.logo) return '';
+    return '<div class="' + cls + '" role="img" aria-label="' + esc(biz.name) + ' logo"><img class="ld" src="' + biz.logo + '" alt="' + esc(biz.name) + ' logo" /></div>';
   }
   function isFoodCategory(cat) {
     return /restaurant|caf[eé]|bakery|pastry|boulanger|p[aâ]tisserie|pizza|burger|tacos|food|snack|traiteur|grocery|hanout|sushi|kebab/i.test(String(cat || ''));
@@ -33,11 +33,6 @@
   function priceText(p) { return (p === '' || p == null) ? '' : esc(p) + ' MAD'; }
 
   /* ---------------- Components ---------------- */
-
-  function logoHtml(biz, cls) {
-    if (biz.logo) return '<div class="' + cls + '" role="img" aria-label="' + esc(biz.name) + ' logo"><img class="ld" src="' + biz.logo + '" alt="' + esc(biz.name) + ' logo" /></div>';
-    return '<div class="' + cls + '" aria-hidden="true">' + esc(initials(biz.name)) + '</div>';
-  }
 
   function actionsHtml(biz, variant) {
     var btns = [];
@@ -52,7 +47,7 @@
   function heroHtml(biz, chrome) {
     var coverInner = biz.cover
       ? '<img class="ld" src="' + biz.cover + '" alt="" fetchpriority="high" decoding="async" />'
-      : '<div class="bp-empty-in" aria-hidden="true"><div class="bp-empty-mono">' + esc(initials(biz.name)) + '</div></div>';
+      : '';
     var cover = '<div class="bp-cover' + (biz.cover ? '' : ' bp-cover--empty') + '">' + coverInner + '<div class="bp-scrim"></div>' +
       '<div class="bp-hero-in wrap">' +
       '<p class="bp-eyebrow"><span class="nw">' + esc(biz.category || 'Local business') + '</span>' +
@@ -176,7 +171,14 @@
   }
 
   function footerHtml(biz) {
-    return '<footer class="bp-foot"><div class="wrap"><p class="fname">' + esc(biz.name) + '</p></div></footer>';
+    var sub = [biz.city, biz.hours].filter(Boolean).join(' · ');
+    var acts = [];
+    if (biz.whatsapp) acts.push('<a href="' + waLink(biz.whatsapp, 'Hello ' + biz.name + '! I found you on BizDyali.') + '" target="_blank" rel="noopener">' + ic('message-circle') + '<span>WhatsApp</span></a>');
+    else if (biz.phone) acts.push('<a href="tel:' + esc(String(biz.phone).replace(/\s/g, '')) + '">' + ic('phone') + '<span>Call</span></a>');
+    if (biz.address || biz.city) acts.push('<a href="' + mapsLink(biz) + '" target="_blank" rel="noopener">' + ic('navigation') + '<span>Directions</span></a>');
+    return '<footer class="bp-foot"><div class="wrap"><p class="fname" dir="auto">' + esc(biz.name) + '</p>' +
+      (sub ? '<p class="fsub" dir="auto">' + esc(sub) + '</p>' : '') +
+      (acts.length ? '<div class="bp-foot-actions">' + acts.join('') + '</div>' : '') + '</div></footer>';
   }
 
   function barHtml(biz) {
