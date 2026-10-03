@@ -418,9 +418,31 @@
 
   // ---- Demo seed (sample pages so visitors + admins see a live example) ----
   api.seedDemo = function () {
-    if (allBusinesses().some(function (b) { return b.slug === 'cafe-nassim'; })) return;
     var now = Date.now();
     var D = 86400000;
+    // Curated demo photography (verified Unsplash CDN URLs).
+    function U(id, w) { return 'https://images.unsplash.com/' + id + '?w=' + (w || 1200) + '&q=70&auto=format&fit=crop'; }
+    var CAFE_COVER = U('photo-1554118811-1e0d58224f24', 1600);
+    var CAFE_PHOTOS = {
+      espresso: [U('photo-1495474472287-4d71bcdd2085', 900), U('photo-1445116572660-236099ec97a0', 900)],
+      msemen: [U('photo-1555507036-ab1f4038808a', 900)],
+      tiramisu: [U('photo-1578985545062-69928b1d9587', 900)]
+    };
+    var list = allBusinesses();
+    // Upgrade path: existing photo-less demo gets its photography.
+    var nassim = list.find(function (b) { return b.slug === 'cafe-nassim'; });
+    if (nassim && !nassim.cover) {
+      nassim.cover = CAFE_COVER;
+      (nassim.items || []).forEach(function (it) {
+        if (it.id === 'di1') it.photos = CAFE_PHOTOS.espresso.slice();
+        if (it.id === 'di2') it.photos = CAFE_PHOTOS.msemen.slice();
+      });
+      if (!(nassim.items || []).some(function (it) { return it.id === 'di4'; })) {
+        nassim.items.push({ id: 'di4', kind: 'product', name: 'Tiramisu', description: 'Creamy mascarpone, cocoa dust.', price: 28, photos: CAFE_PHOTOS.tiramisu.slice(), video: null, order: 3 });
+      }
+      try { saveAllBusinesses(list); } catch (e) { /* ignore */ }
+    }
+    if (nassim) return;
     function demoBiz(o) {
       var b = {
         id: o.id, ownerId: 'demo', demo: true,
@@ -429,7 +451,7 @@
         phone: '+212 6 61 00 00 00', whatsapp: '+212661000000',
         address: o.address, city: o.city, hours: 'Mon – Sat: 8:00 – 23:00',
         facebook: 'https://facebook.com/', instagram: 'https://instagram.com/',
-        logo: null, cover: null, offeringType: 'both',
+        logo: o.logo || null, cover: o.cover || null, offeringType: 'both',
         items: o.items, slug: o.slug, status: o.status, published: o.published,
         subscription: o.subscription || 'none', suspended: !!o.suspended, expiryLogged: false,
         trialStart: o.trialStart, trialEnd: o.trialEnd,
@@ -438,14 +460,16 @@
       return b;
     }
     var items1 = [
-      { id: 'di1', kind: 'product', name: 'Espresso', description: 'Rich single-origin espresso.', price: 15, photos: [], video: null, order: 0 },
-      { id: 'di2', kind: 'product', name: 'Msemen & Honey', description: 'Fresh griddle bread, served warm.', price: 8, photos: [], video: null, order: 1 },
-      { id: 'di3', kind: 'service', name: 'Birthday Table Setup', description: 'We decorate a table for your celebration.', price: 150, photos: [], video: null, order: 2 }
+      { id: 'di1', kind: 'product', name: 'Espresso', description: 'Rich single-origin espresso.', price: 15, photos: CAFE_PHOTOS.espresso.slice(), video: null, order: 0 },
+      { id: 'di2', kind: 'product', name: 'Msemen & Honey', description: 'Fresh griddle bread, served warm.', price: 8, photos: CAFE_PHOTOS.msemen.slice(), video: null, order: 1 },
+      { id: 'di4', kind: 'product', name: 'Tiramisu', description: 'Creamy mascarpone, cocoa dust.', price: 28, photos: CAFE_PHOTOS.tiramisu.slice(), video: null, order: 2 },
+      { id: 'di3', kind: 'service', name: 'Birthday Table Setup', description: 'We decorate a table for your celebration.', price: 150, photos: [], video: null, order: 3 }
     ];
     var seeds = [
       demoBiz({ id: 'biz_demo_nassim', ownerName: 'Salma Bennani', ownerEmail: 'salma@example.com',
         name: 'Café Nassim', category: 'Café', city: 'Casablanca', address: '12 Rue Yacoub El Mansour, Maârif',
         desc: 'A cozy neighbourhood café in Maârif. Fresh msemen every morning, great espresso, sunny terrace.',
+        cover: CAFE_COVER,
         items: items1, slug: 'cafe-nassim', status: 'trial', published: true,
         trialStart: new Date(now - 1 * D).toISOString(), trialEnd: new Date(now + 13 * D).toISOString(),
         createdAt: new Date(now - 1 * D).toISOString() }),
@@ -476,7 +500,6 @@
         items: [], slug: '', status: 'draft', published: false, trialStart: null, trialEnd: null,
         createdAt: new Date(now - 2 * 3600000).toISOString() })
     ];
-    var list = allBusinesses();
     seeds.forEach(function (b) { list.push(b); });
     try { saveAllBusinesses(list); } catch (e) { /* ignore */ }
     // Seed log history so the Activity Log view has content on first run.

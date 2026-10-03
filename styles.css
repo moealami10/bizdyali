@@ -149,9 +149,8 @@ a{color:inherit}
 .f-card h3{font-size:1.04rem;margin:0 0 .15rem;font-family:var(--font-body);font-weight:700}
 .f-card p{margin:0;font-size:.93rem;color:var(--muted)}
 .f-icon{font-size:1.25rem;background:var(--card);border:1px solid var(--line);width:46px;height:46px;display:grid;place-items:center;border-radius:13px}
-.edit-banner{margin-top:1.6rem;background:var(--green-ink);color:#EDE9DE;border-radius:20px;padding:1.6rem;display:grid;gap:1rem;position:relative;overflow:hidden}
-.edit-banner::before{content:"";position:absolute;top:-60px;right:-60px;width:200px;height:200px;border:1px solid rgba(231,178,60,.35);border-radius:50%}
-.edit-banner h3{font-family:var(--font-body);font-size:1.15rem}
+.edit-banner{margin-top:1.6rem;background:var(--green-ink);color:#EDE9DE;border-radius:20px;border-top:2px solid rgba(231,178,60,.55);padding:1.7rem 1.6rem;display:grid;gap:1.1rem}
+.edit-banner h3{font-family:var(--font-display);font-weight:560;font-size:1.3rem;letter-spacing:-.01em;max-width:26rem}
 .edit-banner p{color:#B9B4A6;margin:0}
 .edit-banner ul{list-style:none;margin:0;padding:0;display:grid;gap:.4rem;font-weight:700}
 
