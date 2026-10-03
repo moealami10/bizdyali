@@ -19,7 +19,11 @@
       unavailableTitle: 'This page is temporarily unavailable.',
       notFoundTitle: 'Page not found', notFoundText: 'This BizDyali link doesn’t exist or was never published.',
       directoryTitle: 'Businesses on BizDyali', directoryText: 'Live public pages.',
-      createCta: 'Create Your Free Business Page', poweredBy: 'Powered by'
+      createCta: 'Create Your Free Business Page', poweredBy: 'Powered by',
+      openNow: 'Open now', closesAt: '· closes {t}', closedNow: 'Closed', opensAt: '· opens {t}',
+      askWhatsApp: 'Ask on WhatsApp', orderBar: 'Send order ({n} items · {total})',
+      addedToOrder: 'Added', photos: 'Photos', all: 'All', popular: 'Popular', isNew: 'New',
+      testimonials: 'What customers say', trustTitle: 'Good to know'
     },
     fr: {
       whatsapp: 'WhatsApp', call: 'Appeler', directions: 'Itinéraire', share: 'Partager', copied: 'Copié',
@@ -34,7 +38,11 @@
       unavailableTitle: 'Cette page est temporairement indisponible.',
       notFoundTitle: 'Page introuvable', notFoundText: 'Ce lien BizDyali n’existe pas ou n’a jamais été publié.',
       directoryTitle: 'Commerces sur BizDyali', directoryText: 'Pages publiques en ligne.',
-      createCta: 'Créez votre page business gratuite', poweredBy: 'Propulsé par'
+      createCta: 'Créez votre page business gratuite', poweredBy: 'Propulsé par',
+      openNow: 'Ouvert', closesAt: '· ferme à {t}', closedNow: 'Fermé', opensAt: '· ouvre à {t}',
+      askWhatsApp: 'Commander sur WhatsApp', orderBar: 'Envoyer la commande ({n} articles · {total})',
+      addedToOrder: 'Ajouté', photos: 'Photos', all: 'Tout', popular: 'Populaire', isNew: 'Nouveau',
+      testimonials: 'Ce que disent les clients', trustTitle: 'Bon à savoir'
     },
     ar: {
       whatsapp: 'واتساب', call: 'اتصال', directions: 'الاتجاهات', share: 'مشاركة', copied: 'تم النسخ',
@@ -49,7 +57,11 @@
       unavailableTitle: 'هذه الصفحة غير متوفرة مؤقتاً.',
       notFoundTitle: 'الصفحة غير موجودة', notFoundText: 'رابط BizDyali هذا غير موجود أو لم يُنشر أبداً.',
       directoryTitle: 'المتاجر على BizDyali', directoryText: 'صفحات عامة نشطة.',
-      createCta: 'أنشئ صفحة عملك المجانية', poweredBy: 'بدعم من'
+      createCta: 'أنشئ صفحة عملك المجانية', poweredBy: 'بدعم من',
+      openNow: 'مفتوح الآن', closesAt: '· يغلق {t}', closedNow: 'مغلق', opensAt: '· يفتح {t}',
+      askWhatsApp: 'اطلب عبر واتساب', orderBar: 'إرسال الطلب ({n} عناصر · {total})',
+      addedToOrder: 'تمت الإضافة', photos: 'الصور', all: 'الكل', popular: 'الأكثر طلباً', isNew: 'جديد',
+      testimonials: 'ماذا يقول الزبناء', trustTitle: 'معلومات مفيدة'
     }
   };
 
