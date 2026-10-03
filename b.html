@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Business page — BizDyali</title>
+  <meta name="description" content="View this local business on BizDyali." />
+  <meta property="og:title" content="BizDyali — Your business, online." />
+  <meta property="og:description" content="View this local business on BizDyali." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="css/app.css" />
+  <link rel="stylesheet" href="css/public.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230B5D4A'/><text x='50' y='68' font-size='58' text-anchor='middle' fill='white' font-family='Georgia' font-weight='bold'>B</text></svg>" />
+</head>
+<body>
+  <div id="previewRibbon" class="preview-ribbon" hidden>👁️ Owner preview — customers see the live page (or the trial notice if expired).</div>
+  <main class="app-wrap" style="padding-top:0">
+    <div id="pubMount"></div>
+  </main>
+
+  <script src="js/store.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/render.js"></script>
+  <script>
+  (function () {
+    BizDyali.seedDemo();
+    var params = new URLSearchParams(location.search);
+    var slug = params.get('slug') || '';
+    var isPreview = params.get('preview') === '1';
+    var mount = document.getElementById('pubMount');
+    document.getElementById('previewRibbon').hidden = !isPreview;
+
+    function esc(s) { return BizRender.esc(s); }
+    // Slim brand header used ONLY for non-business states (directory,
+    // not-found, unavailable). Business pages render their own chrome header.
+    var brandBar = '<div class="container topnav"><a href="index.html" class="logo"><span class="logo-mark">B</span><span class="logo-word">BizDyali</span></a><div class="links"><a href="index.html">Create your free page →</a></div></div>';
+
+    if (!slug) {
+      // No slug: show live pages directory (demo of independent business data).
+      var pages = [];
+      try { pages = JSON.parse(localStorage.getItem('bizdyali_businesses_v1') || '[]'); } catch (e) {}
+      pages = pages.filter(function (b) {
+        var st = BizDyali.trialState(b).status;
+        return b.published && (st === 'trial' || st === 'subscribed');
+      });
+      mount.innerHTML = brandBar + '<h1 class="page-title">Businesses on BizDyali</h1>' +
+        '<p class="page-sub">Live public pages. <a href="auth.html">Create your free page</a> — 14 days free.</p>' +
+        (pages.length ? '<div class="item-list">' + pages.map(function (b) {
+          return '<a class="item-row" style="text-decoration:none;color:inherit" href="b.html?slug=' + encodeURIComponent(b.slug) + '">' +
+            '<div class="item-thumb">' + esc((b.name || '?').charAt(0).toUpperCase()) + '</div>' +
+            '<div><b>' + esc(b.name) + '</b><br /><small>' + esc(b.category || '') + (b.city ? ' • ' + esc(b.city) : '') + '</small></div></a>';
+        }).join('') + '</div>' : '<div class="empty">No live pages yet — yours could be the first.</div>');
+      document.title = 'Businesses — BizDyali';
+      return;
+    }
+
+    var biz = BizDyali.getBySlug(slug);
+    if (!biz) {
+      mount.innerHTML = brandBar + '<div class="card expired-card"><h1 class="page-title">Page not found</h1>' +
+        '<p class="page-sub">This BizDyali link doesn’t exist or was never published.</p>' +
+        '<div class="btn-row" style="justify-content:center"><a class="btn btn-primary" href="auth.html">Create Your Free Business Page</a></div></div>';
+      return;
+    }
+    document.title = biz.name + ' — BizDyali';
+
+    var st = BizDyali.trialState(biz);
+    BizDyali.checkAndLogExpiry(biz); // system records the expiry the first time it is seen
+    if ((st.status === 'expired' || st.status === 'suspended') && !isPreview) {
+      // Public page unavailable after trial or when disabled — details hidden, data stays saved.
+      var isSusp = st.status === 'suspended';
+      mount.innerHTML = brandBar + '<div class="card expired-card"><p class="kicker">BizDyali</p>' +
+        '<h1 class="page-title">' + esc(biz.name) + '</h1>' +
+        '<p class="page-sub">This page is temporarily unavailable.</p>' +
+        '<div class="form-err" style="max-width:34rem;margin:0 auto">' + (isSusp
+          ? 'This page has been paused. Please check back soon.'
+          : 'The 14-day free trial for this business has ended. The owner can subscribe for <strong>100 MAD/month</strong> to make it visible again.') + '</div>' +
+        '<div class="btn-row" style="justify-content:center;margin-top:1rem"><a class="btn btn-primary" href="auth.html">Create Your Free Business Page</a></div></div>';
+      return;
+    }
+    BizRender.renderPublicPage(biz, mount, { chrome: true, seo: true });
+  })();
+  </script>
+</body>
+</html>

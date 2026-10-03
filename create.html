@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create your business page — BizDyali</title>
+  <meta name="description" content="Create your BizDyali business page in 5 guided steps. No technical knowledge needed." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="css/app.css" />
+  <link rel="stylesheet" href="css/public.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230B5D4A'/><text x='50' y='68' font-size='58' text-anchor='middle' fill='white' font-family='Georgia' font-weight='bold'>B</text></svg>" />
+</head>
+<body>
+  <div class="container topnav">
+    <a href="index.html" class="logo"><span class="logo-mark">B</span><span class="logo-word">BizDyali</span></a>
+    <div class="links"><span id="whoAmI"></span><a href="dashboard.html">Dashboard</a></div>
+  </div>
+
+  <main class="app-wrap">
+    <p class="kicker">Page creator • <span id="saveState">Draft saved</span></p>
+    <h1 class="page-title">Create your business page</h1>
+    <p class="page-sub">Five small steps. Your work saves automatically — you can leave and come back anytime.</p>
+
+    <ol class="steps-bar" id="stepsBar">
+      <li data-s="1"><i>1</i>Information</li>
+      <li data-s="2"><i>2</i>Branding</li>
+      <li data-s="3"><i>3</i>Products &amp; services</li>
+      <li data-s="4"><i>4</i>Preview</li>
+      <li data-s="5"><i>5</i>Publish</li>
+    </ol>
+
+    <div id="wizErr" class="form-err" hidden></div>
+
+    <!-- STEP 1 -->
+    <section class="wizard-step" data-step="1">
+      <div class="card">
+        <h2 class="page-title" style="font-size:1.3rem">Step 1 — Business information</h2>
+        <div class="form-grid">
+          <label class="field">Business name *
+            <input type="text" id="f_name" placeholder="e.g. Café Nassim" />
+          </label>
+          <div class="two-col">
+            <label class="field">Business category *
+              <select id="f_category">
+                <option value="">Choose a category…</option>
+                <option>Restaurant</option><option>Café</option><option>Bakery / Pastry</option>
+                <option>Salon / Barber</option><option>Clothing shop</option><option>Grocery / Hanout</option>
+                <option>Electronics / Repair</option><option>Artisan / Crafts</option><option>Services</option><option>Other</option>
+              </select>
+            </label>
+            <label class="field">City *
+              <input type="text" id="f_city" placeholder="e.g. Casablanca" />
+            </label>
+          </div>
+          <label class="field">Business description *
+            <textarea id="f_description" placeholder="What do you offer? What makes you special? Your story in 2–3 sentences."></textarea>
+          </label>
+          <div class="two-col">
+            <label class="field">Phone number *
+              <input type="tel" id="f_phone" placeholder="+212 6 XX XX XX XX" />
+            </label>
+            <label class="field">WhatsApp number *
+              <input type="tel" id="f_whatsapp" placeholder="+212 6 XX XX XX XX" />
+              <span class="hint">Customers will contact you on this number with one tap.</span>
+            </label>
+          </div>
+          <label class="field">Address
+            <input type="text" id="f_address" placeholder="Street, neighbourhood…" />
+          </label>
+          <label class="field">Opening hours *
+            <input type="text" id="f_hours" placeholder="e.g. Mon – Sat: 8:00 – 23:00" />
+          </label>
+          <div class="two-col">
+            <label class="field">Facebook URL (optional)
+              <input type="url" id="f_facebook" placeholder="https://facebook.com/…" />
+            </label>
+            <label class="field">Instagram URL (optional)
+              <input type="url" id="f_instagram" placeholder="https://instagram.com/…" />
+            </label>
+          </div>
+        </div>
+        <div class="btn-row"><button class="btn btn-primary btn-lg" data-next>Continue →</button></div>
+      </div>
+    </section>
+
+    <!-- STEP 2 -->
+    <section class="wizard-step" data-step="2">
+      <div class="card">
+        <h2 class="page-title" style="font-size:1.3rem">Step 2 — Branding</h2>
+        <p class="page-sub">Your logo and a cover photo make your page look professional. Both are optional — you can add them later.</p>
+        <div class="form-grid">
+          <label class="field">Logo
+            <input type="file" id="f_logo" accept="image/*" />
+            <span class="hint">Square image works best (JPG or PNG).</span>
+          </label>
+          <img id="logoPreview" class="img-preview" alt="Logo preview" hidden />
+          <label class="field">Cover image
+            <input type="file" id="f_cover" accept="image/*" />
+            <span class="hint">A wide photo of your shop or your best work.</span>
+          </label>
+          <img id="coverPreview" class="cover-preview" alt="Cover preview" hidden />
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-ghost" data-back>← Back</button>
+          <button class="btn btn-primary btn-lg" data-next>Continue →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 3 -->
+    <section class="wizard-step" data-step="3">
+      <div class="card">
+        <h2 class="page-title" style="font-size:1.3rem">Step 3 — Products &amp; services</h2>
+        <p class="page-sub">What will customers find on your page?</p>
+        <div class="pills" role="group" aria-label="Offering type">
+          <button type="button" class="pill" data-offer="products">Products</button>
+          <button type="button" class="pill" data-offer="services">Services</button>
+          <button type="button" class="pill" data-offer="both">Both</button>
+        </div>
+        <ul class="item-list" id="itemList"></ul>
+        <div class="empty" id="itemEmpty">Nothing added yet. Add your first product or service below — photos and prices help customers decide.</div>
+        <div class="btn-row">
+          <button class="btn btn-ghost" id="addProductBtn">+ Add product</button>
+          <button class="btn btn-ghost" id="addServiceBtn">+ Add service</button>
+        </div>
+
+        <div class="card" id="itemEditor" hidden style="margin-top:1rem;background:#FFFDF8">
+          <h3 id="editorTitle">Add product</h3>
+          <div class="form-grid">
+            <label class="field"><span id="itemNameLabel">Product name *</span>
+              <input type="text" id="it_name" placeholder="e.g. Msemen" />
+            </label>
+            <label class="field">Description
+              <textarea id="it_desc" style="min-height:64px" placeholder="Short description…"></textarea>
+            </label>
+            <label class="field">Price in MAD (optional)
+              <input type="number" id="it_price" min="0" step="1" placeholder="e.g. 15" />
+            </label>
+            <label class="field">Photos (up to 4)
+              <input type="file" id="it_photos" accept="image/*" multiple />
+            </label>
+            <div class="thumbs" id="itPhotoThumbs"></div>
+            <label class="field">Video (optional, max 10 MB)
+              <input type="file" id="it_video" accept="video/*" />
+              <span class="hint" id="itVideoHint">No video attached.</span>
+            </label>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="itSave">Save</button>
+            <button class="btn btn-ghost" id="itCancel" type="button">Cancel</button>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-ghost" data-back>← Back</button>
+          <button class="btn btn-primary btn-lg" data-next>Preview my page →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 4 -->
+    <section class="wizard-step" data-step="4">
+      <p class="kicker">Step 4 — Preview</p>
+      <h2 class="page-title" style="font-size:1.3rem">This is what customers will see</h2>
+      <p class="page-sub">Check everything on mobile and desktop. Go back to fix anything — nothing is public yet.</p>
+      <div class="btn-row" style="margin-bottom:1rem">
+        <button class="btn btn-ghost" data-goto="1">Edit information</button>
+        <button class="btn btn-ghost" data-goto="2">Edit branding</button>
+        <button class="btn btn-ghost" data-goto="3">Edit products / services</button>
+      </div>
+      <div id="previewMount"></div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" data-back>← Back</button>
+        <button class="btn btn-primary btn-lg" data-next>Looks good — continue →</button>
+      </div>
+    </section>
+
+    <!-- STEP 5 -->
+    <section class="wizard-step" data-step="5">
+      <div class="card">
+        <p class="kicker">Step 5 — Publish</p>
+        <h2 class="page-title" style="font-size:1.3rem">Publish your page 🎉</h2>
+        <p class="page-sub">Your page goes live immediately with <strong>14 days free</strong>. After the trial, it stays visible for <strong>100 MAD/month</strong> (no payment needed today).</p>
+        <label class="field">Your BizDyali link
+          <span class="hint">Lowercase letters, numbers and dashes only.</span>
+          <span class="slug-row"><code>b.html?slug=</code><input type="text" id="f_slug" style="max-width:280px" /></span>
+        </label>
+        <div id="pubWarn" class="form-warn" hidden style="margin-top:.6rem">⚠️ Your page has <strong>no products or services yet</strong>. Customers will see an almost empty page. Add some from Step 3 — or click Publish again to publish anyway.</div>
+        <div id="pubErr" class="form-err" hidden style="margin-top:.6rem"></div>
+        <div class="btn-row">
+          <button class="btn btn-ghost" data-back>← Back</button>
+          <button class="btn btn-accent btn-lg" id="publishBtn">Publish my page — start 14 free days</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/store.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/wizard.js"></script>
+</body>
+</html>

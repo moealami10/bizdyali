@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard — BizDyali</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="css/app.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230B5D4A'/><text x='50' y='68' font-size='58' text-anchor='middle' fill='white' font-family='Georgia' font-weight='bold'>B</text></svg>" />
+  <style>
+    .admin-badge{background:#231A00;color:var(--amber);font-size:.72rem;font-weight:800;border-radius:999px;padding:.2rem .65rem;letter-spacing:.08em}
+    .stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.7rem;margin:1rem 0}
+    @media(min-width:760px){.stat-grid{grid-template-columns:repeat(4,1fr)}}
+    .stat{background:#fff;border:1px solid var(--line);border-radius:16px;padding:.9rem 1rem}
+    .stat b{display:block;font-size:1.7rem;font-family:var(--font-display)}
+    .stat span{font-size:.82rem;color:var(--muted);font-weight:600}
+    .stat.alert b{color:#B3261E}
+    .stat.good b{color:var(--green)}
+    .table-wrap{overflow-x:auto;background:#fff;border:1px solid var(--line);border-radius:16px}
+    table.admin-table{border-collapse:collapse;width:100%;min-width:760px;font-size:.88rem}
+    table.admin-table th,table.admin-table td{text-align:left;padding:.6rem .7rem;border-bottom:1px solid var(--line);vertical-align:top}
+    table.admin-table th{background:#FAF6EF;font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+    table.admin-table tr:hover td{background:#FFFDF8}
+    .status-pill{display:inline-block;font-size:.75rem;font-weight:800;border-radius:999px;padding:.15rem .6rem;white-space:nowrap}
+    .st-trial{background:#E6F6EC;color:#0B5D4A}.st-expired{background:#FDECEA;color:#8F1F16}
+    .st-subscribed{background:#E3EDFF;color:#1D3FA8}.st-draft{background:#EFE8D8;color:#5B5344}
+    .st-suspended{background:#3A2E00;color:#FFC53D}
+    .toolbar{display:flex;flex-wrap:wrap;gap:.6rem;margin:1rem 0}
+    .toolbar input,.toolbar select{width:auto;min-width:180px}
+    .detail-grid{display:grid;gap:1rem}
+    @media(min-width:900px){.detail-grid{grid-template-columns:1.2fr 1fr}}
+    .kv{display:grid;grid-template-columns:150px 1fr;gap:.3rem .7rem;font-size:.9rem;margin:.4rem 0}
+    .kv dt{color:var(--muted);font-weight:600}.kv dd{margin:0}
+    .media-strip{display:flex;flex-wrap:wrap;gap:.5rem}
+    .media-strip img{width:84px;height:84px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+  </style>
+</head>
+<body>
+  <div class="container topnav">
+    <a href="index.html" class="logo"><span class="logo-mark">B</span><span class="logo-word">BizDyali</span> <span class="admin-badge">ADMIN</span></a>
+    <div class="links"><span id="adminWho"></span><button class="link-btn" id="adminLogout" type="button" hidden>Sign out</button></div>
+  </div>
+
+  <main class="app-wrap">
+    <!-- GATE -->
+    <section id="gateView" class="app-narrow" style="margin:0 auto" hidden>
+      <div class="card">
+        <div id="setupBox" hidden>
+          <h1 class="page-title" style="font-size:1.4rem">Set up the admin account</h1>
+          <p class="page-sub">No administrator exists in this browser yet. Only the authorized platform-owner email can create the admin account.</p>
+          <div id="setupErr" class="form-err" hidden></div>
+          <form id="setupForm" class="form-grid" autocomplete="off">
+            <label class="field">Admin email<input type="email" id="setupEmail" required autocomplete="off" /></label>
+            <label class="field">Admin password (min 8 characters)<input type="password" id="setupPw" required autocomplete="new-password" /></label>
+            <button class="btn btn-primary btn-lg" type="submit">Create admin account</button>
+          </form>
+        </div>
+        <div id="loginBox" hidden>
+          <h1 class="page-title" style="font-size:1.4rem">Admin sign in</h1>
+          <p class="page-sub">Restricted area. Business owners: please use the <a href="auth.html">regular sign in</a>.</p>
+          <div id="loginErr" class="form-err" hidden></div>
+          <form id="loginForm" class="form-grid" autocomplete="off">
+            <label class="field">Admin email<input type="email" id="adminEmail" required autocomplete="off" /></label>
+            <label class="field">Password<input type="password" id="adminPw" required autocomplete="new-password" /></label>
+            <button class="btn btn-primary btn-lg" type="submit">Sign in to admin →</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- APP -->
+    <section id="adminApp" hidden>
+      <p class="kicker">BizDyali administration</p>
+      <h1 class="page-title">Platform overview</h1>
+      <div id="adminErr" class="form-err" hidden></div>
+      <div id="adminOk" class="form-ok" hidden></div>
+
+      <div class="stat-grid" id="statGrid"></div>
+
+      <div class="tabs" role="tablist" aria-label="Admin sections">
+        <button class="tab" data-atab="businesses" role="tab" aria-selected="true">Businesses</button>
+        <button class="tab" data-atab="trials" role="tab" aria-selected="false">Trials</button>
+        <button class="tab" data-atab="activity" role="tab" aria-selected="false">Activity log</button>
+      </div>
+
+      <!-- BUSINESSES -->
+      <section data-apanel="businesses" class="dash-panel active">
+        <div class="toolbar">
+          <input type="text" id="bizSearch" placeholder="Search name, owner, city…" aria-label="Search businesses" />
+          <select id="statusFilter" aria-label="Filter by status">
+            <option value="">All statuses</option>
+            <option value="trial">On trial</option>
+            <option value="subscribed">Paid / subscribed</option>
+            <option value="expired">Expired</option>
+            <option value="draft">Draft</option>
+            <option value="suspended">Disabled</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" id="refreshBtn" type="button">↻ Refresh</button>
+        </div>
+        <div class="table-wrap"><table class="admin-table" id="bizTable">
+          <thead><tr><th>Business</th><th>Owner</th><th>Category • City</th><th>Created</th><th>Trial start → end</th><th>Status</th><th>Subscription</th><th></th></tr></thead>
+          <tbody id="bizRows"></tbody>
+        </table></div>
+        <p class="page-sub" id="bizCount" style="margin-top:.5rem"></p>
+
+        <div id="bizDetail" hidden style="margin-top:1.2rem">
+          <div class="btn-row"><button class="btn btn-ghost btn-sm" id="backToList" type="button">← Back to list</button></div>
+          <h2 class="page-title" style="font-size:1.4rem" id="d_bizName"></h2>
+          <div class="detail-grid">
+            <div>
+              <div class="card">
+                <h3>Business information</h3>
+                <dl class="kv" id="d_info"></dl>
+                <div class="btn-row">
+                  <a class="btn btn-ghost btn-sm" id="d_viewCustomer" href="#" target="_blank" rel="noopener">View as customer →</a>
+                  <a class="btn btn-ghost btn-sm" id="d_viewPublic" href="#" target="_blank" rel="noopener">Preview as owner</a>
+                  <span id="d_noPublic" class="status-pill st-draft" hidden>Not published yet</span>
+                  <button class="btn btn-ghost btn-sm" id="d_toggleEdit" type="button">Edit information</button>
+                </div>
+                <form id="d_editForm" class="form-grid" hidden style="margin-top:.8rem">
+                  <div class="two-col">
+                    <label class="field">Name<input type="text" id="e_name" /></label>
+                    <label class="field">Category<input type="text" id="e_category" /></label>
+                  </div>
+                  <label class="field">Description<textarea id="e_description"></textarea></label>
+                  <div class="two-col">
+                    <label class="field">Phone<input type="tel" id="e_phone" /></label>
+                    <label class="field">WhatsApp<input type="tel" id="e_whatsapp" /></label>
+                  </div>
+                  <div class="two-col">
+                    <label class="field">Address<input type="text" id="e_address" /></label>
+                    <label class="field">City<input type="text" id="e_city" /></label>
+                  </div>
+                  <div class="two-col">
+                    <label class="field">Hours<input type="text" id="e_hours" /></label>
+                    <label class="field">Offering<select id="e_offering"><option value="products">Products</option><option value="services">Services</option><option value="both">Both</option></select></label>
+                  </div>
+                  <div class="two-col">
+                    <label class="field">Facebook<input type="url" id="e_facebook" /></label>
+                    <label class="field">Instagram<input type="url" id="e_instagram" /></label>
+                  </div>
+                  <div class="btn-row"><button class="btn btn-primary" type="submit">Save (logged)</button></div>
+                </form>
+              </div>
+              <div class="card">
+                <h3>Products &amp; services (<span id="d_itemCount">0</span>)</h3>
+                <div id="d_items"></div>
+              </div>
+              <div class="card">
+                <h3>Uploaded media</h3>
+                <div id="d_media"></div>
+              </div>
+            </div>
+            <div>
+              <div class="card">
+                <h3>Trial &amp; subscription</h3>
+                <dl class="kv" id="d_trial"></dl>
+                <label class="field">Extend trial by (days)
+                  <span style="display:flex;gap:.4rem"><input type="number" id="extendDays" min="1" max="365" value="14" style="max-width:120px" />
+                  <button class="btn btn-primary btn-sm" id="extendBtn" type="button">Extend</button></span>
+                </label>
+                <div class="btn-row">
+                  <button class="btn btn-ghost btn-sm" id="subOnBtn" type="button">Mark as paid (100 MAD/mo)</button>
+                  <button class="btn btn-ghost btn-sm" id="subOffBtn" type="button">Remove subscription</button>
+                </div>
+              </div>
+              <div class="card">
+                <h3>Page access</h3>
+                <p class="page-sub" id="d_accessNote"></p>
+                <div class="btn-row">
+                  <button class="btn btn-ghost btn-sm" id="suspendBtn" type="button">Disable public page</button>
+                  <button class="btn btn-ghost btn-sm" id="unsuspendBtn" type="button">Re-enable page</button>
+                  <button class="btn btn-ghost btn-sm" id="unpublishBtn" type="button">Unpublish (to draft)</button>
+                </div>
+              </div>
+              <div class="card" style="border-color:#B3261E">
+                <h3 style="color:#B3261E">Danger zone</h3>
+                <p class="page-sub">Permanently deletes the business, its products, media and history. Two confirmations required.</p>
+                <div class="btn-row"><button class="link-btn danger" id="deleteBizBtn" type="button">Delete business permanently…</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TRIALS -->
+      <section data-apanel="trials" class="dash-panel">
+        <div class="card"><h3>🟢 On trial (<span id="t_active_n">0</span>)</h3><div class="table-wrap"><table class="admin-table"><tbody id="t_active"></tbody></table></div></div>
+        <div class="card"><h3>🟡 Expiring soon — 3 days or less (<span id="t_soon_n">0</span>)</h3><div class="table-wrap"><table class="admin-table"><tbody id="t_soon"></tbody></table></div></div>
+        <div class="card"><h3>🔴 Expired (<span id="t_exp_n">0</span>)</h3><div class="table-wrap"><table class="admin-table"><tbody id="t_exp"></tbody></table></div></div>
+      </section>
+
+      <!-- ACTIVITY -->
+      <section data-apanel="activity" class="dash-panel">
+        <div class="toolbar">
+          <select id="logType" aria-label="Filter by event">
+            <option value="">All events</option>
+            <option value="account_created">Account created</option>
+            <option value="business_created">Business created</option>
+            <option value="product_added">Product added</option>
+            <option value="product_edited">Product edited</option>
+            <option value="product_deleted">Product deleted</option>
+            <option value="service_added">Service added</option>
+            <option value="service_edited">Service edited</option>
+            <option value="service_deleted">Service deleted</option>
+            <option value="image_uploaded">Image uploaded</option>
+            <option value="video_uploaded">Video uploaded</option>
+            <option value="info_changed">Info changed</option>
+            <option value="trial_started">Trial started</option>
+            <option value="trial_expired">Trial expired</option>
+            <option value="admin_action">Admin actions</option>
+          </select>
+          <input type="text" id="logSearch" placeholder="Search business, actor…" aria-label="Search log" />
+        </div>
+        <div class="table-wrap"><table class="admin-table">
+          <thead><tr><th>Time</th><th>Event</th><th>Actor</th><th>Business</th><th>Details</th></tr></thead>
+          <tbody id="logRows"></tbody>
+        </table></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="js/store.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
