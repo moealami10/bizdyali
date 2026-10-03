@@ -342,15 +342,11 @@
     }).join('') + '</div>';
   }
 
-  function footerHtml(biz) {
+  function footerHtml(biz, T) {
     var sub = [biz.city, biz.hours].filter(Boolean).join(' \u00b7 ');
-    var links = [];
-    if (biz.whatsapp) links.push('<a href="' + waLink(biz.whatsapp, 'Hello ' + biz.name + '! I found you on BizDyali.') + '" target="_blank" rel="noopener">WhatsApp</a>');
-    else if (biz.phone) links.push('<a href="tel:' + esc(String(biz.phone).replace(/\s/g, '')) + '">Call</a>');
-    if (biz.address || biz.city) links.push('<a href="' + mapsLink(biz) + '" target="_blank" rel="noopener">Directions</a>');
     return '<footer class="bp-foot"><div class="wrap"><p class="fname" dir="auto">' + esc(biz.name) + '</p>' +
       (sub ? '<p class="fsub" dir="auto">' + esc(sub) + '</p>' : '') +
-      (links.length ? '<p class="flinks">' + links.join('<span aria-hidden="true"> \u00b7 </span>') + '</p>' : '') + '</div></footer>';
+      '<p class="flinks"><button class="flink-share" data-share type="button">' + ic('share-2') + '<span>' + esc(T('share')) + '</span></button></p></div></footer>';
   }
 
   function barHtml(biz, T) {
@@ -715,14 +711,16 @@
       });
     });
 
-    // Share button (lives in the hero actions row on every render)
-    var share = mount.querySelector('[data-share]');
-    if (share) share.addEventListener('click', function () {
-      var url = location.href.split('#')[0];
-      var label = share.querySelector('span');
-      function done(msg) { if (label) { label.textContent = msg; setTimeout(function () { label.textContent = (ref.T || function (k) { return k; })('share'); }, 2000); } }
-      if (navigator.share) navigator.share({ title: document.title, url: url }).catch(function () {});
-      else if (navigator.clipboard) navigator.clipboard.writeText(url).then(function () { done((ref.T || function (k) { return k; })('copied')); }, function () {});
+    // Share buttons (hero actions row + footer): each restores its own label.
+    Array.prototype.forEach.call(mount.querySelectorAll('[data-share]'), function (share) {
+      share.addEventListener('click', function () {
+        var url = location.href.split('#')[0];
+        var label = share.querySelector('span');
+        var TT = ref.T || function (k) { return k; };
+        function done(msg) { if (label) { label.textContent = msg; setTimeout(function () { label.textContent = TT('share'); }, 2000); } }
+        if (navigator.share) navigator.share({ title: document.title, url: url }).catch(function () {});
+        else if (navigator.clipboard) navigator.clipboard.writeText(url).then(function () { done(TT('copied')); }, function () {});
+      });
     });
 
     // Order basket (only when biz.theme.basket is on)

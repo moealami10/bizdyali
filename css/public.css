@@ -192,7 +192,8 @@
 .bp-foot .flinks{margin-top:.9rem;font-size:.92rem}
 .bp-foot .flinks a{color:var(--bp-goldbright);font-weight:600;text-decoration:none;padding:.45rem .15rem}
 .bp-foot .flinks a:hover{text-decoration:underline}
-.bp-foot .flinks span{color:rgba(255,255,255,.3)}
+.bp-foot .flink-share{display:inline-flex;align-items:center;gap:.5rem;background:none;border:0;padding:.55rem .2rem;min-height:44px;cursor:pointer;color:var(--bp-goldbright);font:inherit;font-weight:700;font-size:.92rem}
+.bp-foot .flink-share:hover{text-decoration:underline}
 .bp-foot p{font-size:.87rem;margin-top:.4rem}
 .bp-foot a{font-weight:700;color:var(--bp-goldbright);padding:.5rem .25rem}
 
