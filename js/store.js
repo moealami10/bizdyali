@@ -382,26 +382,129 @@
     logEvent: function (type, opts) { return logEvent(type, opts); } // owner flows log their own actions
   };
 
-  // ---- Media helpers (downscale images so localStorage stays usable) ----
+  // ---- Media pipeline (orientation fix, WebP + sizes, blur placeholder).
+  // Storage still targets localStorage in this phase (same quotas as before);
+  // the IndexedDB move lands in a later checkpoint behind this same api.media
+  // interface. Photos may be legacy strings or {src, fx, fy} focal objects.
+  var webpOK = null;
+  function supportsWebp() {
+    if (webpOK !== null) return Promise.resolve(webpOK);
+    return new Promise(function (resolve) {
+      try {
+        var c = document.createElement('canvas');
+        c.width = 1; c.height = 1;
+        c.toBlob(function (b) { webpOK = !!(b && b.type === 'image/webp'); resolve(webpOK); }, 'image/webp', 0.8);
+      } catch (e) { webpOK = false; resolve(false); }
+    });
+  }
+  function loadBitmap(file) {
+    // createImageBitmap honors EXIF orientation: rotated phone photos arrive upright.
+    if (typeof createImageBitmap === 'function') {
+      try {
+        var opts = {};
+        try { opts = { imageOrientation: 'from-image' }; } catch (e) {}
+        return createImageBitmap(file, opts).catch(function () { return createImageBitmap(file); });
+      } catch (e) { /* fall through */ }
+    }
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('Could not read that image.')); };
+      img.src = url;
+    });
+  }
+  function canvasBlob(canvas, useWebp, quality) {
+    return new Promise(function (resolve, reject) {
+      var type = useWebp ? 'image/webp' : 'image/jpeg';
+      if (canvas.toBlob) canvas.toBlob(function (b) { b ? resolve(b) : reject(new Error('Encode failed.')); }, type, quality == null ? 0.82 : quality);
+      else {
+        try { resolve(dataURLtoBlob(canvas.toDataURL(type, 0.82))); }
+        catch (e) { reject(e); }
+      }
+    });
+  }
+  function dataURLtoBlob(dataURL) {
+    var parts = dataURL.split(',');
+    var mime = (parts[0].match(/:(.*?);/) || [])[1] || 'image/jpeg';
+    var bin = atob(parts[1]);
+    var arr = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  }
+  function blobToDataURL(blob) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(r.result); };
+      r.onerror = function () { reject(new Error('Could not read encoded image.')); };
+      r.readAsDataURL(blob);
+    });
+  }
+  function drawScaled(bitmap, maxDim) {
+    var w0 = bitmap.width, h0 = bitmap.height;
+    var scale = Math.min(1, maxDim / Math.max(w0, h0));
+    var c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(w0 * scale));
+    c.height = Math.max(1, Math.round(h0 * scale));
+    c.getContext('2d').drawImage(bitmap, 0, 0, c.width, c.height);
+    return c;
+  }
   api.media = {
-    fileToImageDataURL: function (file, maxDim) {
-      maxDim = maxDim || 1000;
+    supportsWebp: supportsWebp,
+    // Full pipeline: {thumb, full, placeholder, width, height, type}.
+    // thumb ~480px, full ~1400px (cover callers pass maxFull 1800).
+    processImage: function (file, opts) {
+      opts = opts || {};
+      var maxFull = opts.maxFull || 1400;
       return new Promise(function (resolve, reject) {
         if (!file || !file.type.match(/^image\//)) return reject(new Error('Not an image file.'));
-        var url = URL.createObjectURL(file);
-        var img = new Image();
-        img.onload = function () {
-          URL.revokeObjectURL(url);
-          var scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-          var w = Math.max(1, Math.round(img.width * scale));
-          var h = Math.max(1, Math.round(img.height * scale));
-          var c = document.createElement('canvas'); c.width = w; c.height = h;
-          c.getContext('2d').drawImage(img, 0, 0, w, h);
-          resolve(c.toDataURL('image/jpeg', 0.82));
-        };
-        img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('Could not read that image.')); };
-        img.src = url;
+        supportsWebp().then(function (useWebp) {
+          return loadBitmap(file).then(function (bmp) {
+            var fullC = drawScaled(bmp, maxFull);
+            var thumbC = drawScaled(bmp, 480);
+            var tiny = document.createElement('canvas');
+            tiny.width = 24;
+            tiny.height = Math.max(1, Math.round(24 * bmp.height / Math.max(1, bmp.width)));
+            tiny.getContext('2d').drawImage(bmp, 0, 0, tiny.width, tiny.height);
+            return canvasBlob(fullC, useWebp).then(function (fb) {
+              return canvasBlob(thumbC, useWebp).then(function (tb) {
+                return blobToDataURL(fb).then(function (full) {
+                  return blobToDataURL(tb).then(function (thumb) {
+                    resolve({
+                      thumb: thumb, full: full,
+                      placeholder: tiny.toDataURL('image/jpeg', 0.6),
+                      width: fullC.width, height: fullC.height,
+                      type: useWebp ? 'image/webp' : 'image/jpeg'
+                    });
+                  });
+                });
+              });
+            });
+          });
+        }).catch(reject);
       });
+    },
+    fileToImageDataURL: function (file, maxDim) {
+      // Legacy signature kept for wizard/dashboard: returns the full-size URL.
+      return api.media.processImage(file, { maxFull: maxDim || 1000 }).then(function (o) { return o.full; });
+    },
+    // Focal-point helpers: accept legacy strings or {src, fx, fy} (fx/fy 0..100).
+    photoSrc: function (photo) {
+      if (!photo) return '';
+      return typeof photo === 'string' ? photo : (photo.src || '');
+    },
+    photoPosition: function (photo) {
+      if (photo && typeof photo === 'object' && photo.fx != null && photo.fy != null) {
+        var x = Math.max(0, Math.min(100, Number(photo.fx)));
+        var y = Math.max(0, Math.min(100, Number(photo.fy)));
+        return x + '% ' + y + '%';
+      }
+      return '50% 50%';
+    },
+    normalizePhoto: function (photo) {
+      if (!photo) return null;
+      if (typeof photo === 'string') return { src: photo, fx: 50, fy: 50 };
+      return { src: photo.src || '', fx: photo.fx == null ? 50 : photo.fx, fy: photo.fy == null ? 50 : photo.fy };
     },
     fileToVideoDataURL: function (file, maxMB) {
       maxMB = maxMB || 10;
