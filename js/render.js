@@ -44,6 +44,7 @@
     if (biz.whatsapp) btns.push('<a class="btn-bp btn-wa" data-act="wa" href="' + waLink(biz.whatsapp, 'Hello ' + biz.name + '! I found you on BizDyali.') + '" target="_blank" rel="noopener">' + ic('message-circle') + 'WhatsApp</a>');
     if (biz.phone) btns.push('<a class="btn-bp btn-line" data-act="call" href="tel:' + esc(String(biz.phone).replace(/\s/g, '')) + '">' + ic('phone') + 'Call</a>');
     if (biz.address || biz.city) btns.push('<a class="btn-bp btn-quiet" data-act="dir" href="' + mapsLink(biz) + '" target="_blank" rel="noopener">' + ic('navigation') + 'Directions</a>');
+    btns.push('<button class="btn-bp btn-quiet" data-share type="button">' + ic('share-2') + '<span>Share</span></button>');
     if (!btns.length) return '';
     return '<div class="bp-actions" data-sentinel>' + btns.join('') + '</div>';
   }
@@ -63,12 +64,8 @@
     if (biz.hours) meta.push('<span class="chip">' + ic('clock') + esc(biz.hours) + '</span>');
     var desc = biz.description
       ? '<div class="bp-desc" dir="auto">' + esc(biz.description).split(/\n{2,}|\n/).map(function (p) { return '<p>' + p + '</p>'; }).join('') + '</div>' : '';
-    return (chrome
-      ? '<header class="bp-top" data-top><div class="bp-top-in">' +
-        '<a class="bp-brandline" href="index.html"><span class="mk">B</span>BizDyali</a>' +
-        '<button class="bp-share" data-share type="button">' + ic('share-2') + '<span>Share</span></button>' +
-        '</div></header>' : '') +
-      '<section class="bp-hero" aria-label="' + esc(biz.name) + '">' + cover +
+    // No platform chrome on business pages: no header; Share lives in the actions row.
+    return '<section class="bp-hero" aria-label="' + esc(biz.name) + '">' + cover +
       '<div class="bp-id"><div class="wrap">' +
       '<div class="bp-id-row">' + logoHtml(biz, 'bp-logo') + '</div>' +
       (meta.length ? '<div class="bp-meta">' + meta.join('') + '</div>' : '') +
@@ -179,8 +176,7 @@
   }
 
   function footerHtml(biz) {
-    return '<footer class="bp-foot"><div class="wrap"><p class="fname">' + esc(biz.name) + '</p>' +
-      '<p>Powered by <a href="index.html">BizDyali</a> — your business, online. <a href="auth.html">Create your free page</a></p></div></footer>';
+    return '<footer class="bp-foot"><div class="wrap"><p class="fname">' + esc(biz.name) + '</p></div></footer>';
   }
 
   function barHtml(biz) {
@@ -477,17 +473,7 @@
       });
     });
 
-    if (!opts.chrome) return;
-
-    // Sticky top bar state
-    var top = mount.querySelector('[data-top]');
-    if (top) {
-      var onScroll = function () { top.classList.toggle('scrolled', window.scrollY > 8); };
-      window.addEventListener('scroll', onScroll, { passive: true });
-      onScroll();
-    }
-
-    // Share button
+    // Share button (lives in the hero actions row on every render)
     var share = mount.querySelector('[data-share]');
     if (share) share.addEventListener('click', function () {
       var url = location.href.split('#')[0];
@@ -497,7 +483,8 @@
       else if (navigator.clipboard) navigator.clipboard.writeText(url).then(function () { done('Copied'); }, function () {});
     });
 
-    // Sticky mobile action bar visibility
+    // Sticky mobile action bar visibility (customer pages only, not previews)
+    if (!opts.chrome) return;
     var bar = document.querySelector('[data-bar]');
     var sentinel = mount.querySelector('[data-sentinel]');
     if (bar && sentinel && 'IntersectionObserver' in window) {

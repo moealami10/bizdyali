@@ -61,15 +61,6 @@
   .bp.anim .rv.in{opacity:1;transform:none}
 }
 
-/* ---------- Top brand bar ---------- */
-.bp-top{position:sticky;top:0;z-index:40;background:rgba(253,252,248,.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid transparent;transition:border-color var(--bp-t-fast)}
-.bp-top.scrolled{border-bottom-color:var(--bp-line)}
-.bp-top-in{width:min(var(--bp-max),100% - 2.5rem);margin-inline:auto;height:60px;display:flex;align-items:center;justify-content:space-between;gap:1rem}
-.bp-brandline{display:flex;align-items:center;gap:.55rem;text-decoration:none;font-weight:800;letter-spacing:-.01em;color:var(--bp-ink);padding:.55rem .6rem;margin:-.55rem -.6rem}
-.bp-brandline .mk{width:28px;height:28px;border-radius:9px;background:var(--bp-deep);color:#fff;display:grid;place-items:center;font-family:var(--bp-display);font-size:1rem}
-.bp-share{display:inline-flex;align-items:center;gap:.45rem;border:1px solid var(--bp-line);background:var(--bp-surface);border-radius:999px;padding:.65rem 1.05rem;min-height:44px;font-weight:700;font-size:.86rem;cursor:pointer;color:var(--bp-ink)}
-.bp-share:hover{border-color:var(--bp-ink)}
-
 /* ---------- Hero: cinematic cover + overlaid identity ---------- */
 .bp-hero{position:relative;background:var(--bp-inkbar)}
 .bp-cover{position:relative;height:clamp(340px,72vw,560px);overflow:hidden}
@@ -94,7 +85,7 @@
 
 /* Hero actions: one dominant primary */
 .bp-actions{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1.25rem}
-.btn-bp{display:inline-flex;align-items:center;justify-content:center;gap:.55rem;border-radius:var(--bp-r);padding:.9rem 1.5rem;font-weight:700;font-size:.96rem;text-decoration:none;border:1px solid transparent;cursor:pointer;min-width:0;transition:transform var(--bp-t-fast) var(--bp-ease),background var(--bp-t-fast),border-color var(--bp-t-fast);min-height:50px}
+.btn-bp{display:inline-flex;align-items:center;justify-content:center;gap:.55rem;border-radius:var(--bp-r);padding:.9rem 1.5rem;font:inherit;font-weight:700;font-size:.96rem;text-decoration:none;border:1px solid transparent;cursor:pointer;background:none;min-width:0;transition:transform var(--bp-t-fast) var(--bp-ease),background var(--bp-t-fast),border-color var(--bp-t-fast);min-height:50px}
 .btn-bp:active{transform:translateY(1px)}
 .btn-wa{background:var(--bp-deep);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.14)}
 .btn-wa:hover{background:#04231B}
