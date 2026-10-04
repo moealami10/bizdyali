@@ -270,4 +270,5 @@ a{color:inherit}
 [dir="rtl"] .float-card{border-left:1px solid var(--line);border-right:3px solid var(--green)}
 [dir="rtl"] .check-list li{padding-left:0;padding-right:1.6rem}
 [dir="rtl"] .check-list li::before{left:auto;right:0}
+[dir="rtl"] .step-tag{right:auto;left:1rem}
 [dir="rtl"] code,.link-demo{direction:ltr;unicode-bidi:isolate}
