@@ -419,6 +419,7 @@ section[id]{scroll-margin-top:84px}
   /* Catalogue: wider editorial, 2-up rows, roomier grid */
   .feat-item{grid-template-columns:1.08fr .92fr;gap:3rem}
   .rows{display:grid;grid-template-columns:1fr 1fr;column-gap:2.5rem;align-content:start}
+  .menu{display:grid;grid-template-columns:1fr 1fr;column-gap:3rem;align-content:start}
   .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 3rem}
   .quotes{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:1.6rem}
 
