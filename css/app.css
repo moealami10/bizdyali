@@ -119,3 +119,11 @@ textarea{min-height:96px;resize:vertical}
 [dir="rtl"] input[type="email"],[dir="rtl"] input[type="url"],[dir="rtl"] input[type="tel"],[dir="rtl"] code{direction:ltr}
 [dir="rtl"] .share-row code{overflow-wrap:anywhere}
 [dir="rtl"] input[type="email"],[dir="rtl"] input[type="url"],[dir="rtl"] input[type="tel"]{text-align:right}
+
+/* Auth: phone row with fixed prefix chip */
+.wa-row{display:flex;gap:.5rem;align-items:stretch}
+.wa-prefix{flex:none;display:inline-flex;align-items:center;background:#F2EFE7;border:1px solid var(--line);border-radius:12px;padding:0 .9rem;font-weight:800;min-height:48px}
+.wa-row input{flex:1;min-width:0}
+.link-btn:disabled{opacity:.45;cursor:default}
+[hidden]{display:none !important}
+.fine{font-size:.85rem;color:var(--muted)}

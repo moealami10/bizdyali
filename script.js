@@ -27,13 +27,21 @@
   var year = document.getElementById('year');
   if (year) year.textContent = String(new Date().getFullYear());
 
-  // Final CTA → account creation (name carried along for convenience)
+  // Final CTA → account creation. A phone-like input is staged in sessionStorage
+  // (never the URL: numbers leak through history/referrers); otherwise the
+  // business name travels via ?biz= as before.
   var form = document.getElementById('ctaForm');
   var input = document.getElementById('ctaInput');
   if (form && input) {
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       var v = input.value.trim();
+      var digits = v.replace(/[^0-9]/g, '');
+      if (digits.length >= 8 && window.BizAuth) {
+        try { sessionStorage.setItem('bizdyali_login_phone', v.slice(0, 24)); } catch (e2) {}
+        location.href = 'auth.html';
+        return;
+      }
       location.href = 'auth.html' + (v ? '?biz=' + encodeURIComponent(v.slice(0, 60)) : '');
     });
   }

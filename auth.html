@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>دخل ولا صايب كونت — BizDyali</title>
-  <meta name="description" content="صايب الكونت ديال BizDyali باش تصايب الصفحة الفابور ديال المشروع ديالك." />
+  <title>دخل بنمرة الواتساب — BizDyali</title>
+  <meta name="description" content="دخل للكونت ديالك بكود كيوصلك فواتساب. بلا كود سري." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -20,84 +20,182 @@
   </div>
 
   <main class="app-wrap app-narrow">
-    <h1 class="page-title" id="authTitle">صايب الكونت ديالك</h1>
-    <p class="page-sub" id="authSub">بدا بـ<strong>14 يوم فابور</strong>. من بعد 100 درهم فالشهر. بلا كارت بنكية.</p>
+    <h1 class="page-title" id="authTitle">دخل بنمرة الواتساب</h1>
+    <p class="page-sub" id="authSub">غتوصّل بكود فواتساب. بلا كود سري.</p>
 
     <div class="card" style="margin-top:1rem">
-      <div class="tabs" role="tablist" aria-label="Account mode">
-        <button class="tab" id="tabSignup" role="tab" aria-selected="true">صايب كونت</button>
-        <button class="tab" id="tabLogin" role="tab" aria-selected="false">دخل</button>
-      </div>
-      <div id="authErr" class="form-err" hidden></div>
-      <form id="authForm" class="form-grid">
-        <label class="field" id="nameField">السمية
+      <div id="authErr" class="form-err" role="alert" aria-live="assertive" hidden></div>
+
+      <!-- STEP 1: number -->
+      <form id="phoneForm" class="form-grid">
+        <label class="field">نمرة الواتساب
+          <span class="wa-row"><span class="wa-prefix" dir="ltr">+212</span><input type="tel" id="authPhone" inputmode="numeric" autocomplete="tel" placeholder="6 XX XX XX XX" dir="ltr" required /></span>
+        </label>
+        <button type="submit" class="btn btn-primary btn-lg" id="sendBtn">سيفط الكود ←</button>
+        <p class="fine" style="margin:0">باش تكمّل، وافق على <a href="terms.html">الشروط</a> و <a href="privacy.html">الخصوصية</a>.</p>
+      </form>
+
+      <!-- STEP 2: code -->
+      <form id="codeForm" class="form-grid" hidden>
+        <p class="page-sub" style="margin:0">سيفطنا كود ديال 6 دالأرقام للنمرة <strong id="codePhone" dir="ltr"></strong>. <button class="link-btn" id="changeBtn" type="button">بدّل النمرة</button></p>
+        <label class="field">الكود
+          <input type="text" id="authCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="······" dir="ltr" required />
+        </label>
+        <button type="submit" class="btn btn-primary btn-lg" id="verifyBtn">دخل ←</button>
+        <p class="fine" style="margin:0"><button class="link-btn" id="resendBtn" type="button">عاود سيفط الكود</button><span id="countWrap" hidden> — عاود من بعد <span id="countNum">60</span> ثانية</span></p>
+      </form>
+
+      <!-- STEP 3: name (first run only) -->
+      <form id="nameForm" class="form-grid" hidden>
+        <p class="page-sub" style="margin:0">أول مرة كتدخل؟ مرحبا بيك.</p>
+        <label class="field">شنو سميتك؟
           <input type="text" id="authName" placeholder="مثلا: سلمى بناني" autocomplete="name" />
         </label>
-        <label class="field">الإيميل
-          <input type="email" id="authEmail" placeholder="you@example.com" autocomplete="email" required dir="ltr" />
-        </label>
-        <label class="field">الكود السري
-          <input type="password" id="authPassword" placeholder="على الأقل 6 دالحروف" autocomplete="current-password" required />
-          <span class="hint">نسخة تجريبية: الكونطات محفوظة غير فهاد المتصفح.</span>
-        </label>
-        <button type="submit" class="btn btn-primary btn-lg" id="authSubmit">صايب الكونت وكمّل ←</button>
+        <button type="submit" class="btn btn-primary btn-lg">كمّل ←</button>
       </form>
-      <p class="auth-switch" id="authSwitch">عندك كونت؟ <button class="link-btn" id="switchLink" type="button">دخل</button></p>
     </div>
   </main>
 
-  <script src="js/store.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
   <script>
   (function () {
-    BizDyali.seedDemo();
     var params = new URLSearchParams(location.search);
-    var next = params.get('next') || 'dashboard.html';
-    var mode = params.get('mode') === 'login' ? 'login' : 'signup';
-    if (BizDyali.currentUser()) { location.replace(next); return; }
+    var next = BizAuth.validateNext(params.get('next'));
+    var bizName = params.get('biz');
+    // Already signed in: honour next (validated) instead of showing the form.
+    if (BizAuth.getUser()) { location.replace(next === 'dashboard.html' && bizName ? 'create.html?biz=' + encodeURIComponent(bizName.slice(0, 60)) : next); return; }
 
-    var tabSignup = document.getElementById('tabSignup');
-    var tabLogin = document.getElementById('tabLogin');
-    var nameField = document.getElementById('nameField');
-    var submit = document.getElementById('authSubmit');
-    var title = document.getElementById('authTitle');
-    var sub = document.getElementById('authSub');
-    var switchLink = document.getElementById('switchLink');
     var err = document.getElementById('authErr');
+    var phoneForm = document.getElementById('phoneForm');
+    var codeForm = document.getElementById('codeForm');
+    var nameForm = document.getElementById('nameForm');
+    var phoneInput = document.getElementById('authPhone');
+    var codeInput = document.getElementById('authCode');
+    var resendBtn = document.getElementById('resendBtn');
+    var countWrap = document.getElementById('countWrap');
+    var countNum = document.getElementById('countNum');
+    // Homepage CTA may stage a detected number here (never in the URL).
+    try {
+      var staged = sessionStorage.getItem('bizdyali_login_phone');
+      if (staged) { phoneInput.value = staged; sessionStorage.removeItem('bizdyali_login_phone'); }
+    } catch (e) {}
+    var phone = '';
+    var timer = null;
 
-    function setMode(m) {
-      mode = m;
-      var signup = m === 'signup';
-      tabSignup.setAttribute('aria-selected', signup);
-      tabLogin.setAttribute('aria-selected', !signup);
-      nameField.style.display = signup ? '' : 'none';
-      submit.textContent = signup ? 'صايب الكونت وكمّل ←' : 'دخل ←';
-      title.textContent = signup ? 'صايب الكونت ديالك' : 'مرحبا بيك';
-      sub.innerHTML = signup
-        ? 'بدا بـ<strong>14 يوم فابور</strong>. من بعد 100 درهم فالشهر. بلا كارت بنكية.'
-        : 'دخل باش تسيّر الصفحة ديال المشروع ديالك على BizDyali.';
-      switchLink.textContent = signup ? 'دخل' : 'صايب كونت';
-      document.getElementById('authSwitch').firstChild.textContent = signup ? 'عندك كونت؟ ' : 'جديد على BizDyali؟ ';
-      err.hidden = true;
+    var ERRORS = {
+      'empty': 'كتب النمرة.',
+      'too-short': 'كتب النمرة كاملة.',
+      'too-long': 'النمرة طويلة بزاف.',
+      'landline': 'هاد النمرة أرضية. دخل نمرة المحمول (06 ولا 07).',
+      'invalid': 'هاد النمرة ما صالحاش. تأكد وعاود.',
+      'wrong': 'الكود غلط. عاود المحاولة.',
+      'expired': 'سالا الوقت ديال الكود. طلب واحد جديد.',
+      'too-many': 'حاولتي بزاف. تسنّى دقيقة وعاود.',
+      'rate-limited': 'طلبتي بزاف دالأكواد. تسنّى شوية وعاود.',
+      'offline': 'ما كايناش الكونكسيون. شوف الريزو وعاود.',
+      'send-failed': 'ما تسيفطش الكود. عاود من بعد شوية.',
+      'not-configured': 'الدخول ما زال ما تضبطش. تواصل مع BizDyali.',
+      'mock-localhost-only': 'نسخة التجربة خدامة غير محليا.'
+    };
+    function showErr(code, extra) {
+      var msg = ERRORS[code] || 'كاين شي مشكل. عاود من بعد شوية.';
+      if (code === 'wrong' && extra && extra.attemptsLeft > 0) msg += ' (باقي لك ' + extra.attemptsLeft + ' دالمحاولات.)';
+      err.textContent = msg; err.hidden = false;
     }
-    tabSignup.onclick = function () { setMode('signup'); };
-    tabLogin.onclick = function () { setMode('login'); };
-    switchLink.onclick = function () { setMode(mode === 'signup' ? 'login' : 'signup'); };
+    function hideErr() { err.hidden = true; }
+    function online() { return typeof navigator === 'undefined' || navigator.onLine !== false; }
 
-    document.getElementById('authForm').addEventListener('submit', function (e) {
+    function startCountdown(sec) {
+      if (timer) { clearInterval(timer); timer = null; }
+      resendBtn.disabled = true;
+      countWrap.hidden = false;
+      var left = sec;
+      countNum.textContent = String(left);
+      timer = setInterval(function () {
+        left -= 1;
+        if (left <= 0) { clearInterval(timer); timer = null; resendBtn.disabled = false; countWrap.hidden = true; return; }
+        countNum.textContent = String(left);
+      }, 1000);
+    }
+
+    function showStep(n) {
+      phoneForm.hidden = n !== 1;
+      codeForm.hidden = n !== 2;
+      nameForm.hidden = n !== 3;
+      hideErr();
+    }
+
+    phoneForm.addEventListener('submit', function (e) {
       e.preventDefault();
-      err.hidden = true;
-      var res = mode === 'signup'
-        ? BizDyali.signup(document.getElementById('authName').value, document.getElementById('authEmail').value, document.getElementById('authPassword').value)
-        : BizDyali.login(document.getElementById('authEmail').value, document.getElementById('authPassword').value);
-      if (res.error) { err.textContent = res.error; err.hidden = false; return; }
-      // New signups go to the page creator; returning users to their dashboard.
-      var bizName = params.get('biz');
-      location.replace(mode === 'signup'
-        ? 'create.html' + (bizName ? '?biz=' + encodeURIComponent(bizName) : '')
-        : next);
+      hideErr();
+      if (!online()) { showErr('offline'); return; }
+      var p = BizAuth.parsePhone(phoneInput.value);
+      if (p.error) { showErr(p.error); return; }
+      phone = p.e164;
+      BizAuth.requestCode(phone, {}).then(function (res) {
+        if (!res.ok) { showErr(res.error); return; }
+        document.getElementById('codePhone').textContent = phone;
+        codeInput.value = '';
+        showStep(2);
+        codeInput.focus();
+        startCountdown(res.resendIn || 60);
+      });
     });
 
-    setMode(mode);
+    document.getElementById('changeBtn').addEventListener('click', function () {
+      if (timer) { clearInterval(timer); timer = null; }
+      showStep(1);
+      phoneInput.focus();
+    });
+    resendBtn.addEventListener('click', function () {
+      hideErr();
+      if (!online()) { showErr('offline'); return; }
+      BizAuth.requestCode(phone, {}).then(function (res) {
+        if (!res.ok) {
+          if (res.error === 'resend-wait') { startCountdown(res.retryIn || 60); return; }
+          showErr(res.error); return;
+        }
+        startCountdown(res.resendIn || 60);
+      });
+    });
+    codeInput.addEventListener('input', function () {
+      codeInput.value = codeInput.value.replace(/\D/g, '').slice(0, 6);
+      if (codeInput.value.length === 6) codeForm.requestSubmit();
+    });
+    var pending = false;
+    codeForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (pending) return;
+      hideErr();
+      if (!online()) { showErr('offline'); return; }
+      pending = true;
+      BizAuth.verifyCode(phone, codeInput.value).then(function (res) {
+        pending = false;
+        if (!res.ok) { showErr(res.error, res); return; }
+        try { sessionStorage.setItem('bizdyali_verified_phone', phone); } catch (e2) {}
+        if (res.isNew) { showStep(3); document.getElementById('authName').focus(); return; }
+        finish();
+      });
+    });
+    nameForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      hideErr();
+      var name = document.getElementById('authName').value.trim();
+      if (name.length < 2) { err.textContent = 'كتب السمية (جوج دالحروف على الأقل).'; err.hidden = false; return; }
+      if ((window.BizConfig && window.BizConfig.provider) === 'supabase') {
+        try { sessionStorage.setItem('bizdyali_pending_name', name); } catch (e2) {}
+      } else {
+        BizAuth.mockSetName(phone, name);
+      }
+      finish();
+    });
+
+    function finish() {
+      // New users land in the creator (business name carried as today); others honour next.
+      if (bizName) location.replace('create.html?biz=' + encodeURIComponent(bizName.slice(0, 60)));
+      else location.replace(next);
+    }
   })();
   </script>
 </body>

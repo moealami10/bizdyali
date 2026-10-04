@@ -2,9 +2,13 @@
 (function () {
   'use strict';
   BizDyali.seedDemo();
-  var user = BizDyali.currentUser();
+  // No-flash session gate: hide until resolved (sync today, async in Phase 3).
+  document.body.style.visibility = 'hidden';
+  setTimeout(function () { document.body.style.visibility = ''; }, 1500); // failsafe
+  var user = (window.BizAuth && BizAuth.getUser()) || BizDyali.currentUser();
   if (!user) { location.replace('auth.html?next=create.html'); return; }
-  document.getElementById('whoAmI').textContent = user.name + ' • ';
+  document.body.style.visibility = '';
+  document.getElementById('whoAmI').textContent = (user.name || user.phone || '') + ' • ';
 
   var draft = BizDyali.loadDraft(user.id) || BizDyali.blankBusiness(user.id);
   draft.ownerId = user.id;
@@ -13,6 +17,10 @@
     var prefill = new URLSearchParams(location.search).get('biz');
     if (prefill && !draft.name) draft.name = prefill.slice(0, 60);
   } catch (e) { /* ignore */ }
+  try {
+    var verified = sessionStorage.getItem('bizdyali_verified_phone');
+    if (verified && !draft.whatsapp) { draft.whatsapp = verified; sessionStorage.removeItem('bizdyali_verified_phone'); }
+  } catch (e2) { /* ignore */ }
   var step = 1;
   var editingItemId = null;
   var editorPhotos = [];

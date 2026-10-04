@@ -190,6 +190,19 @@ repair, freelancers). The language must never imply every user owns a shop.
 | religious-natural touches | Sparingly, only where the general skill allows; never forced | 🔀 | Warmth without piety-signaling |
 | brand attribution | "من BizDyali" | 🔒 | Minimal; never translate "BizDyali" |
 
+## Authentication (WhatsApp code flow)
+
+| Concept | Darija | Use | Why |
+|---|---|---|---|
+| verification code | الكود | 🔒 | Short, universal; "رمز التحقق" is MSA |
+| send (the code) | سيفط الكود | 🔒 | Matches سيفط verb family |
+| resend the code | عاود سيفط الكود | 🔒 | عاود = again, natural |
+| change number | بدّل النمرة | 🔒 | Matches بدّل family |
+| your name (first-run step) | شنو سميتك؟ | 💬 | Warm direct question for that one screen |
+| terms (link) | الشروط | 🔒 | Short label; full legal text is owner's job |
+| privacy (link) | الخصوصية | 🔒 | Short label |
+| WhatsApp number (login) | نمرة الواتساب | 🔒 | Already the product term |
+
 ## Never translate (technical + brand)
 
 `BizDyali` · `WhatsApp` · `Facebook` · `Instagram` · `QR` · `MAD` inside code

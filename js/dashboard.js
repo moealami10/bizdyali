@@ -2,10 +2,14 @@
 (function () {
   'use strict';
   BizDyali.seedDemo();
-  var user = BizDyali.currentUser();
+  document.body.style.visibility = 'hidden';
+  setTimeout(function () { document.body.style.visibility = ''; }, 1500); // failsafe
+  var user = (window.BizAuth && BizAuth.getUser()) || BizDyali.currentUser();
   if (!user) { location.replace('auth.html?next=dashboard.html'); return; }
-  document.getElementById('whoAmI').textContent = user.name + ' • ';
+  document.body.style.visibility = '';
+  document.getElementById('whoAmI').textContent = (user.name || user.phone || '') + ' • ';
   document.getElementById('logoutBtn').addEventListener('click', function () {
+    if (window.BizAuth) BizAuth.signOut();
     BizDyali.logout(); location.replace('index.html');
   });
 

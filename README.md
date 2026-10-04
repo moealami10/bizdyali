@@ -26,7 +26,7 @@ The platform owner monitors everything from the Admin dashboard.
 | Page | File | What it does |
 |---|---|---|
 | Homepage | `index.html` | Hero, features, How It Works, services, pricing, FAQ, final CTA |
-| Auth | `auth.html` | Owner sign-up / sign-in |
+| Auth | `auth.html` | Owner sign-in via WhatsApp code (mock on localhost; Supabase in prod — see `docs/AUTH.md`) |
 | Page creator | `create.html` | 5-step wizard: info → branding → products/services → preview → publish (autosaving drafts, empty-catalog guard) |
 | Owner dashboard | `dashboard.html` | Trial status banner, edit info/branding/catalog, copy & share link, owner preview |
 | Public business page | `b.html?slug=…` | Cinematic hero, adaptive catalog (menu/editorial/grid/compact), photo lightbox, sticky contact bar, SEO + LocalBusiness schema |
