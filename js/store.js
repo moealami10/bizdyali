@@ -639,7 +639,8 @@
     var CAFE_PHOTOS = {
       espresso: [U('photo-1495474472287-4d71bcdd2085', 900), U('photo-1445116572660-236099ec97a0', 900)],
       msemen: [U('photo-1555507036-ab1f4038808a', 900)],
-      tiramisu: [U('photo-1578985545062-69928b1d9587', 900)]
+      tiramisu: [U('photo-1578985545062-69928b1d9587', 900)],
+      birthday: [U('photo-1464349095431-e9a21285b5f3', 900)]
     };
     var list = allBusinesses();
     // Upgrade path: existing photo-less demo gets its photography.
@@ -655,7 +656,14 @@
       }
       try { saveAllBusinesses(list); } catch (e) { /* ignore */ }
     }
-    if (nassim) return;
+    if (nassim) {
+      var di3b = (nassim.items || []).find(function (it) { return it.id === 'di3'; });
+      if (di3b && !(di3b.photos || []).length) {
+        di3b.photos = CAFE_PHOTOS.birthday.slice();
+        try { saveAllBusinesses(list); } catch (e) { /* ignore */ }
+      }
+      return;
+    }
     function demoBiz(o) {
       var b = {
         id: o.id, ownerId: 'demo', demo: true,
@@ -676,7 +684,7 @@
       { id: 'di1', kind: 'product', name: 'Espresso', description: 'Rich single-origin espresso.', price: 15, photos: CAFE_PHOTOS.espresso.slice(), video: null, order: 0 },
       { id: 'di2', kind: 'product', name: 'Msemen & Honey', description: 'Fresh griddle bread, served warm.', price: 8, photos: CAFE_PHOTOS.msemen.slice(), video: null, order: 1 },
       { id: 'di4', kind: 'product', name: 'Tiramisu', description: 'Creamy mascarpone, cocoa dust.', price: 28, photos: CAFE_PHOTOS.tiramisu.slice(), video: null, order: 2 },
-      { id: 'di3', kind: 'service', name: 'Birthday Table Setup', description: 'We decorate a table for your celebration.', price: 150, photos: [], video: null, order: 3 }
+      { id: 'di3', kind: 'service', name: 'Birthday Table Setup', description: 'We decorate a table for your celebration.', price: 150, photos: CAFE_PHOTOS.birthday.slice(), video: null, order: 3 }
     ];
     var seeds = [
       demoBiz({ id: 'biz_demo_nassim', ownerName: 'Salma Bennani', ownerEmail: 'salma@example.com',
