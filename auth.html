@@ -1,47 +1,48 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sign in or create account — BizDyali</title>
-  <meta name="description" content="Create your BizDyali account to build your free business page." />
+  <title>دخل ولا صايب كونت — BizDyali</title>
+  <meta name="description" content="صايب الكونت ديال BizDyali باش تصايب الصفحة الفابور ديال المشروع ديالك." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="css/app.css" />
+  <link rel="stylesheet" href="css/fonts.css" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
 </head>
 <body>
   <div class="container topnav">
     <a href="index.html" class="logo"><span class="logo-mark" aria-hidden="true"><svg viewBox="0 0 36 36" width="26" height="26"><ellipse cx="18" cy="7" rx="12" ry="4" fill="#fff" opacity=".18"/><text x="18" y="24.5" text-anchor="middle" font-family="Fraunces,Georgia,'Times New Roman',serif" font-weight="700" font-size="21" fill="#FFF8E8">B</text><path d="M10 27.4 Q18 29.8 26 26.6" fill="none" stroke="#E7B23C" stroke-width="1.8" stroke-linecap="round"/><circle cx="26.9" cy="25.9" r="1.3" fill="#E7B23C"/></svg></span><span class="logo-word">BizDyali</span></a>
-    <div class="links"><a href="index.html">← Back to homepage</a></div>
+    <div class="links"><a href="index.html">→ رجع للصفحة الرئيسية</a></div>
   </div>
 
   <main class="app-wrap app-narrow">
-    <h1 class="page-title" id="authTitle">Create your account</h1>
-    <p class="page-sub" id="authSub">Start with <strong>14 days free</strong>. Then 100 MAD/month. No card required.</p>
+    <h1 class="page-title" id="authTitle">صايب الكونت ديالك</h1>
+    <p class="page-sub" id="authSub">بدا بـ<strong>14 يوم فابور</strong>. من بعد 100 درهم فالشهر. بلا كارت بنكية.</p>
 
     <div class="card" style="margin-top:1rem">
       <div class="tabs" role="tablist" aria-label="Account mode">
-        <button class="tab" id="tabSignup" role="tab" aria-selected="true">Create account</button>
-        <button class="tab" id="tabLogin" role="tab" aria-selected="false">Sign in</button>
+        <button class="tab" id="tabSignup" role="tab" aria-selected="true">صايب كونت</button>
+        <button class="tab" id="tabLogin" role="tab" aria-selected="false">دخل</button>
       </div>
       <div id="authErr" class="form-err" hidden></div>
       <form id="authForm" class="form-grid">
-        <label class="field" id="nameField">Your name
-          <input type="text" id="authName" placeholder="e.g. Salma Bennani" autocomplete="name" />
+        <label class="field" id="nameField">السمية
+          <input type="text" id="authName" placeholder="مثلا: سلمى بناني" autocomplete="name" />
         </label>
-        <label class="field">Email
-          <input type="email" id="authEmail" placeholder="you@example.com" autocomplete="email" required />
+        <label class="field">الإيميل
+          <input type="email" id="authEmail" placeholder="you@example.com" autocomplete="email" required dir="ltr" />
         </label>
-        <label class="field">Password
-          <input type="password" id="authPassword" placeholder="At least 6 characters" autocomplete="current-password" required />
-          <span class="hint">Demo version: accounts are stored only in this browser.</span>
+        <label class="field">الكود السري
+          <input type="password" id="authPassword" placeholder="على الأقل 6 دالحروف" autocomplete="current-password" required />
+          <span class="hint">نسخة تجريبية: الكونطات محفوظة غير فهاد المتصفح.</span>
         </label>
-        <button type="submit" class="btn btn-primary btn-lg" id="authSubmit">Create account &amp; continue →</button>
+        <button type="submit" class="btn btn-primary btn-lg" id="authSubmit">صايب الكونت وكمّل ←</button>
       </form>
-      <p class="auth-switch" id="authSwitch">Already have an account? <button class="link-btn" id="switchLink" type="button">Sign in</button></p>
+      <p class="auth-switch" id="authSwitch">عندك كونت؟ <button class="link-btn" id="switchLink" type="button">دخل</button></p>
     </div>
   </main>
 
@@ -69,13 +70,13 @@
       tabSignup.setAttribute('aria-selected', signup);
       tabLogin.setAttribute('aria-selected', !signup);
       nameField.style.display = signup ? '' : 'none';
-      submit.textContent = signup ? 'Create account & continue →' : 'Sign in →';
-      title.textContent = signup ? 'Create your account' : 'Welcome back';
+      submit.textContent = signup ? 'صايب الكونت وكمّل ←' : 'دخل ←';
+      title.textContent = signup ? 'صايب الكونت ديالك' : 'مرحبا بيك';
       sub.innerHTML = signup
-        ? 'Start with <strong>14 days free</strong>. Then 100 MAD/month. No card required.'
-        : 'Sign in to manage your BizDyali business page.';
-      switchLink.textContent = signup ? 'Sign in' : 'Create an account';
-      document.getElementById('authSwitch').firstChild.textContent = signup ? 'Already have an account? ' : 'New to BizDyali? ';
+        ? 'بدا بـ<strong>14 يوم فابور</strong>. من بعد 100 درهم فالشهر. بلا كارت بنكية.'
+        : 'دخل باش تسيّر الصفحة ديال المشروع ديالك على BizDyali.';
+      switchLink.textContent = signup ? 'دخل' : 'صايب كونت';
+      document.getElementById('authSwitch').firstChild.textContent = signup ? 'عندك كونت؟ ' : 'جديد على BizDyali؟ ';
       err.hidden = true;
     }
     tabSignup.onclick = function () { setMode('signup'); };

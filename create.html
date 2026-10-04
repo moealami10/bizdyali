@@ -17,21 +17,21 @@
 <body>
   <div class="container topnav">
     <a href="index.html" class="logo"><span class="logo-mark" aria-hidden="true"><svg viewBox="0 0 36 36" width="26" height="26"><ellipse cx="18" cy="7" rx="12" ry="4" fill="#fff" opacity=".18"/><text x="18" y="24.5" text-anchor="middle" font-family="Fraunces,Georgia,'Times New Roman',serif" font-weight="700" font-size="21" fill="#FFF8E8">B</text><path d="M10 27.4 Q18 29.8 26 26.6" fill="none" stroke="#E7B23C" stroke-width="1.8" stroke-linecap="round"/><circle cx="26.9" cy="25.9" r="1.3" fill="#E7B23C"/></svg></span><span class="logo-word">BizDyali</span></a>
-    <div class="links"><span id="whoAmI"></span><a href="dashboard.html">Dashboard</a></div>
+    <div class="links"><span id="whoAmI"></span><a href="dashboard.html">الداشبورد</a></div>
   </div>
 
   <main class="app-wrap">
-    <p class="kicker">Page creator • <span id="saveState">Draft saved</span></p>
-    <h1 class="page-title">Create your business page</h1>
-    <p class="page-sub">Six small steps. Your work saves automatically — you can leave and come back anytime.</p>
+    <p class="kicker">صايب الصفحة • <span id="saveState">تحفظات</span></p>
+    <h1 class="page-title">صايب الصفحة ديال المشروع ديالك</h1>
+    <p class="page-sub">ستة دالخطوات صغار. خدمتك كتحفظ بوحدها — سير وارجع فوقاش ما بغيتي.</p>
 
     <ol class="steps-bar" id="stepsBar">
-      <li data-s="1"><i>1</i>Information</li>
-      <li data-s="2"><i>2</i>Branding</li>
-      <li data-s="3"><i>3</i>Products &amp; services</li>
-      <li data-s="4"><i>4</i>Design &amp; hours</li>
-      <li data-s="5"><i>5</i>Preview</li>
-      <li data-s="6"><i>6</i>Publish</li>
+      <li data-s="1"><i>1</i>المعلومات</li>
+      <li data-s="2"><i>2</i>اللوڭو والغلاف</li>
+      <li data-s="3"><i>3</i>البرودويات والخدمات</li>
+      <li data-s="4"><i>4</i>الديزاين والتوقيت</li>
+      <li data-s="5"><i>5</i>شوف الصفحة</li>
+      <li data-s="6"><i>6</i>النشر</li>
     </ol>
 
     <div id="wizErr" class="form-err" hidden></div>
@@ -39,60 +39,60 @@
     <!-- STEP 1 -->
     <section class="wizard-step" data-step="1">
       <div class="card">
-        <h2 class="page-title" style="font-size:1.3rem">Step 1 — Business information</h2>
+        <h2 class="page-title" style="font-size:1.3rem">الخطوة 1 — معلومات المشروع</h2>
         <div class="form-grid">
-          <label class="field">Business name *
-            <input type="text" id="f_name" placeholder="e.g. Café Nassim" />
+          <label class="field">سمية المشروع *
+            <input type="text" id="f_name" placeholder="مثلا: مقهى نسيم" />
           </label>
           <div class="two-col">
-            <label class="field">Business category *
+            <label class="field">النشاط ديالك *
               <select id="f_category">
-                <option value="">Choose a category…</option>
+                <option value="">ختار النشاط…</option>
                 <option>Restaurant</option><option>Café</option><option>Bakery / Pastry</option>
                 <option>Salon / Barber</option><option>Clothing shop</option><option>Grocery / Hanout</option>
                 <option>Electronics / Repair</option><option>Artisan / Crafts</option><option>Services</option><option>Other</option>
               </select>
             </label>
-            <label class="field">City *
-              <input type="text" id="f_city" placeholder="e.g. Casablanca" />
+            <label class="field">المدينة *
+              <input type="text" id="f_city" placeholder="مثلا: الدار البيضاء" />
             </label>
           </div>
-          <label class="field">Business description *
-            <textarea id="f_description" placeholder="What do you offer? What makes you special? Your story in 2–3 sentences."></textarea>
+          <label class="field">الوصف ديال المشروع *
+            <textarea id="f_description" placeholder="شنو كتقدّم؟ شنو اللي مميّزك؟ القصة ديالك فجوج سطورا."></textarea>
           </label>
           <div class="two-col">
-            <label class="field">Phone number *
+            <label class="field">نمرة التيليفون *
               <input type="tel" id="f_phone" placeholder="+212 6 XX XX XX XX" />
             </label>
-            <label class="field">WhatsApp number *
+            <label class="field">نمرة الواتساب *
               <input type="tel" id="f_whatsapp" placeholder="+212 6 XX XX XX XX" />
-              <span class="hint">Customers will contact you on this number with one tap.</span>
+              <span class="hint">الزبناء غيتواصلو معاك فهاد النمرة بضغطة وحدة.</span>
             </label>
           </div>
-          <label class="field">Address
-            <input type="text" id="f_address" placeholder="Street, neighbourhood…" />
+          <label class="field">العنوان
+            <input type="text" id="f_address" placeholder="الزنقة، الحي…" />
           </label>
-          <label class="field">Opening hours *
-            <input type="text" id="f_hours" placeholder="e.g. Mon – Sat: 8:00 – 23:00" />
+          <label class="field">التوقيت *
+            <input type="text" id="f_hours" placeholder="مثلا: الإثنين – السبت: 8:00 – 23:00" />
           </label>
           <div class="two-col">
-            <label class="field">Facebook URL (optional)
+            <label class="field">رابط فيسبوك (اختياري)
               <input type="url" id="f_facebook" placeholder="https://facebook.com/…" />
             </label>
-            <label class="field">Instagram URL (optional)
+            <label class="field">رابط إنستغرام (اختياري)
               <input type="url" id="f_instagram" placeholder="https://instagram.com/…" />
             </label>
           </div>
-          <label class="field">Page language
+          <label class="field">لغة الصفحة
             <select id="f_lang">
-              <option value="">Auto (from your text)</option>
+              <option value="">أوطو (من النص ديالك)</option>
               <option value="en">English</option>
               <option value="fr">Français</option>
               <option value="ar">العربية</option>
             </select>
           </label>
         </div>
-        <div class="btn-row"><button class="btn btn-primary btn-lg" data-next>Continue →</button></div>
+        <div class="btn-row"><button class="btn btn-primary btn-lg" data-next>كمّل ←</button></div>
       </div>
     </section>
 

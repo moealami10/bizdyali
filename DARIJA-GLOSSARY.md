@@ -136,6 +136,16 @@ repair, freelancers). The language must never imply every user owns a shop.
 | email | الإيميل | 🔒 | Loanword, keep |
 | password | الكود السري | 🔒 | What Moroccans say; "كلمة المرور" is MSA |
 | dashboard | الداشبورد | 🔒 | No natural Darija equivalent; loanword is professional |
+| design (section) | الديزاين | 🔒 | Loanword; "التصميم" reads MSA-manual |
+| look (theme option) | الستايل | 🔒 | "الشكل" is vague; الستايل is what Moroccans say |
+| auto (theme default) | أوطو | 🔒 | Short loanword; "تلقائي" is MSA |
+| dark / light mode | ليلي / نهاري | 🔒 | Plain adjectives; label stays "المود الليلي" |
+| on / off (toggle) | خدّام / طافي | 🔒 | "خدّام" = running, "طافي" = off — appliance verbs, natural |
+| all (filter) | كولشي | 🔒 | Warmer than "الكل" |
+| both (products+services) | بجوج | 🔒 | Distinctly Darija; "الاثنان" unthinkable in UI |
+| section (menu grouping) | القسم | 🔒 | Neutral, understood |
+| badge | العلامة | 🔒 | Values stay fixed: الأكثر طلبا / جديد / والو (none) |
+| duration (services) | المدة | 🔒 | Neutral |
 | settings | الإعدادات | 🔒 | Understood in apps; spoken "الريڭلاج" — never in UI |
 | profile | البروفيل | 🔒 | Loanword, keep |
 | trial (14 free days) | الفترة الفابور | 🔒 | Product frames it as "14 يوم فابور"; "التجربة المجانية" is MSA |

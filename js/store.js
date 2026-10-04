@@ -161,11 +161,11 @@
     signup: function (name, email, password) {
       name = String(name || '').trim();
       email = String(email || '').trim().toLowerCase();
-      if (name.length < 2) return { error: 'Please enter your name.' };
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: 'Please enter a valid email address.' };
-      if (String(password || '').length < 6) return { error: 'Password must be at least 6 characters.' };
+      if (name.length < 2) return { error: 'كتب السمية ديالك.' };
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: 'كتب شي إيميل صحيح.' };
+      if (String(password || '').length < 6) return { error: 'الكود السري خاصو 6 دالحروف على الأقل.' };
       var users = read(USERS_KEY, []);
-      if (users.some(function (u) { return u.email === email; })) return { error: 'An account with this email already exists. Try signing in.' };
+      if (users.some(function (u) { return u.email === email; })) return { error: 'هاد الإيميل عندو كونت. دخل نيشان.' };
       var user = { id: uid('u'), name: name, email: email, pw: hashPw(password), createdAt: new Date().toISOString() };
       users.push(user); write(USERS_KEY, users);
       write(SESSION_KEY, { userId: user.id });
@@ -176,7 +176,7 @@
       email = String(email || '').trim().toLowerCase();
       var users = read(USERS_KEY, []);
       var user = users.find(function (u) { return u.email === email; });
-      if (!user || user.pw !== hashPw(password)) return { error: 'Incorrect email or password.' };
+      if (!user || user.pw !== hashPw(password)) return { error: 'الإيميل ولا الكود السري غلط.' };
       write(SESSION_KEY, { userId: user.id });
       return { user: { id: user.id, name: user.name, email: user.email } };
     },
@@ -257,7 +257,7 @@
     setupAdmin: function (email, password) {
       if (!api.needsAdminSetup()) return { error: 'An administrator already exists. Please sign in.' };
       email = String(email || '').trim().toLowerCase();
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: 'Please enter a valid email address.' };
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: 'كتب شي إيميل صحيح.' };
       if (email !== BOOTSTRAP_ADMIN_EMAIL) return { error: 'This email is not authorized as an administrator.' };
       if (String(password || '').length < 8) return { error: 'Admin password must be at least 8 characters.' };
       var admin = { id: uid('adm'), email: email, pw: hashPw(password), createdAt: new Date().toISOString() };

@@ -45,23 +45,23 @@
       testimonials: 'Ce que disent les clients', trustTitle: 'Bon à savoir'
     },
     ar: {
-      whatsapp: 'واتساب', call: 'اتصال', directions: 'الاتجاهات', share: 'مشاركة', copied: 'تم النسخ',
-      menu: 'القائمة', products: 'المنتجات', services: 'الخدمات', productsServices: 'المنتجات والخدمات',
-      followUs: 'تابعنا', findUs: 'موقعنا', openingHours: 'أوقات العمل',
-      getDirections: 'احصل على الاتجاهات', fullscreen: 'ملء الشاشة', close: 'إغلاق',
-      prevPhoto: 'الصورة السابقة', nextPhoto: 'الصورة التالية', goodToKnow: 'معلومات مفيدة',
-      comingSoon: 'القائمة الكاملة قريباً — تواصل معنا على واتساب وسنساعدك فوراً.',
-      currency: 'د.م.', openPhoto: 'فتح الصورة {a} من {b} بملء الشاشة', openItemPhoto: 'فتح صورة {name} بملء الشاشة',
-      viewPhotos: 'عرض {n} صور {name}', itemVideo: 'فيديو: {name}', showPhoto: 'عرض الصورة {n}',
-      photoOf: '{name} صورة {n}', logoOf: 'شعار {name}', pageOf: '{name}',
-      unavailableTitle: 'هذه الصفحة غير متوفرة مؤقتاً.',
-      notFoundTitle: 'الصفحة غير موجودة', notFoundText: 'رابط BizDyali هذا غير موجود أو لم يُنشر أبداً.',
-      directoryTitle: 'المتاجر على BizDyali', directoryText: 'صفحات عامة نشطة.',
-      createCta: 'أنشئ صفحة عملك المجانية', poweredBy: 'بدعم من',
-      openNow: 'مفتوح الآن', closesAt: '· يغلق {t}', closedNow: 'مغلق', opensAt: '· يفتح {t}',
-      askWhatsApp: 'اطلب عبر واتساب', orderBar: 'إرسال الطلب ({n} عناصر · {total})',
-      addedToOrder: 'تمت الإضافة', photos: 'الصور', all: 'الكل', popular: 'الأكثر طلباً', isNew: 'جديد',
-      testimonials: 'ماذا يقول الزبناء', trustTitle: 'معلومات مفيدة'
+      whatsapp: 'واتساب', call: 'عيّط', directions: 'الطريق', share: 'پارطاجي', copied: 'تنسخ ✓',
+      menu: 'المينيو', products: 'البرودويات', services: 'الخدمات', productsServices: 'البرودويات والخدمات',
+      followUs: 'تبعنا', findUs: 'فين تلقانا', openingHours: 'التوقيت',
+      getDirections: 'شوف الطريق', fullscreen: 'كبّر', close: 'سدّ',
+      prevPhoto: 'التصويرة اللي قبل', nextPhoto: 'التصويرة اللي من بعد', goodToKnow: 'معلومات تنفعك',
+      comingSoon: 'الليست كاملة جاية فالطريق — سيفط لينا فواتساب وغنجاوبوك دابا.',
+      currency: 'درهم', openPhoto: 'كبّر التصويرة {a} من {b}', openItemPhoto: 'كبّر تصويرة {name}',
+      viewPhotos: 'شوف {n} تصاور ديال {name}', itemVideo: 'الفيديو ديال {name}', showPhoto: 'ورّي التصويرة {n}',
+      photoOf: 'التصويرة {n} ديال {name}', logoOf: 'اللوڭو ديال {name}', pageOf: '{name}',
+      unavailableTitle: 'هاد الصفحة واقفة مؤقتا.',
+      notFoundTitle: 'هاد الصفحة ما كايناش', notFoundText: 'هاد الرابط ديال BizDyali ما كاينش ولا ما تنشرش.',
+      directoryTitle: 'المشاريع على BizDyali', directoryText: 'صفحات خدامة دابا.',
+      createCta: 'صايب الصفحة ديالك فابور', poweredBy: 'من',
+      openNow: 'حال دابا', closesAt: '· كيسد مع {t}', closedNow: 'ساد دابا', opensAt: '· كيحل مع {t}',
+      askWhatsApp: 'سول فواتساب', orderBar: 'سيفط الكوموند ({n} حاجات · {total})',
+      addedToOrder: 'تزادت ✓', photos: 'التصاور', all: 'كولشي', popular: 'الأكثر طلبا', isNew: 'جديد',
+      testimonials: 'شنو كيقولو الزبناء', trustTitle: 'معلومات تنفعك'
     }
   };
 

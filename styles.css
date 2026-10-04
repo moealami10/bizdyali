@@ -258,3 +258,16 @@ a{color:inherit}
 }
 .reveal{opacity:0;transform:translateY(12px);transition:opacity .5s ease,transform .5s ease}
 .reveal.visible{opacity:1;transform:none}
+
+/* RTL mirrors (Arabic-script UI). LTR pages unaffected. */
+[dir="rtl"]{--font-body:'IBM Plex Sans Arabic','Inter',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;--font-display:'Noto Naskh Arabic',Georgia,'Times New Roman',serif}
+[dir="rtl"] .skip-link{left:auto;right:-999px}
+[dir="rtl"] .skip-link:focus{left:auto;right:8px}
+[dir="rtl"] .topbar .dot{margin-right:0;margin-left:.45rem}
+[dir="rtl"] .trial-note{border-left:1px solid var(--line);border-right:3px solid var(--amber)}
+[dir="rtl"] .avatars span{margin-left:0;margin-right:-8px}
+[dir="rtl"] .avatars span:nth-child(1){margin-right:0}
+[dir="rtl"] .float-card{border-left:1px solid var(--line);border-right:3px solid var(--green)}
+[dir="rtl"] .check-list li{padding-left:0;padding-right:1.6rem}
+[dir="rtl"] .check-list li::before{left:auto;right:0}
+[dir="rtl"] code,.link-demo{direction:ltr;unicode-bidi:isolate}

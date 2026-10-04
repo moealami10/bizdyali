@@ -25,10 +25,10 @@
   function showErr(msg) { err.textContent = msg; err.hidden = false; err.scrollIntoView({ block: 'nearest' }); }
   function hideErr() { err.hidden = true; }
   function touchSave() {
-    $('saveState').textContent = 'Saving…';
+    $('saveState').textContent = 'كتحفظ…';
     collectStep(step);
     BizDyali.saveDraft(user.id, draft);
-    $('saveState').textContent = 'Draft saved ✓';
+    $('saveState').textContent = 'تحفظات ✓';
   }
 
   // ---- Fill form from draft ----
@@ -93,13 +93,13 @@
 
   function validStep1() {
     collectStep(1);
-    if (draft.name.length < 2) return 'Please enter your business name.';
-    if (!draft.category) return 'Please choose a business category.';
-    if (draft.description.length < 10) return 'Please write a short description (at least 10 characters).';
-    if (draft.phone.length < 6) return 'Please enter a valid phone number.';
-    if (draft.whatsapp.length < 6) return 'Please enter a valid WhatsApp number.';
-    if (draft.city.length < 2) return 'Please enter your city.';
-    if (draft.hours.length < 3) return 'Please enter your opening hours.';
+    if (draft.name.length < 2) return 'كتب سمية المشروع ديالك.';
+    if (!draft.category) return 'ختار النشاط ديالك.';
+    if (draft.description.length < 10) return 'كتب وصف قصير (10 دالحروف على الأقل).';
+    if (draft.phone.length < 6) return 'كتب نمرة تيليفون صحيحة.';
+    if (draft.whatsapp.length < 6) return 'كتب نمرة الواتساب صحيحة.';
+    if (draft.city.length < 2) return 'كتب المدينة ديالك.';
+    if (draft.hours.length < 3) return 'كتب التوقيت ديالك.';
     return null;
   }
 

@@ -112,3 +112,10 @@ textarea{min-height:96px;resize:vertical}
 .slug-row{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap}
 .slug-row code{background:#0F2F28;color:#7DE3B0;border-radius:8px;padding:.3rem .6rem}
 .empty{border:1.5px dashed var(--line);border-radius:14px;padding:1rem;text-align:center;color:var(--muted)}
+
+/* RTL mirrors (Arabic-script UI). LTR pages unaffected. */
+[dir="rtl"]{--font-body:'IBM Plex Sans Arabic','Inter',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;--font-display:'Noto Naskh Arabic',Georgia,'Times New Roman',serif}
+[dir="rtl"] .item-actions{margin-left:0;margin-right:auto}
+[dir="rtl"] input[type="email"],[dir="rtl"] input[type="url"],[dir="rtl"] input[type="tel"],[dir="rtl"] code{direction:ltr}
+[dir="rtl"] .share-row code{overflow-wrap:anywhere}
+[dir="rtl"] input[type="email"],[dir="rtl"] input[type="url"],[dir="rtl"] input[type="tel"]{text-align:right}

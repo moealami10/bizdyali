@@ -18,7 +18,7 @@
   var params = new URLSearchParams(location.search);
   if (params.get('welcome') === '1') {
     var w = $('welcomeMsg');
-    w.textContent = '🎉 Your page is published! Your 14 free days have started. Share your link below.';
+    w.textContent = '🎉 تنشرات الصفحة ديالك! بدات الفترة الفابور ديال 14 يوم. پارطاجي الرابط ديالك لتحت.';
     w.hidden = false;
   }
 
@@ -42,7 +42,7 @@
     var list = myList();
     if (!list.length) {
       $('noBiz').hidden = false; $('dashBody').hidden = true;
-      $('bizTitle').textContent = 'Your pages';
+      $('bizTitle').textContent = 'الصفحات ديالك';
       return;
     }
     biz = BizDyali.getBusiness(id) || list[0];
@@ -55,7 +55,7 @@
   function persist(silent) {
     var res = BizDyali.saveBusiness(biz);
     if (res.error) { showErr(res.error); return false; }
-    if (!silent) showOk('Saved ✓ — your public page is updated.');
+    if (!silent) showOk('تسجّل ✓ — الصفحة ديالك تحدّثات.');
     return true;
   }
 
@@ -65,44 +65,44 @@
     BizDyali.checkAndLogExpiry(biz); // record expiry once, the first time it is seen
     var st = BizDyali.trialState(biz);
     $('trialMeta').innerHTML =
-      '<span>Start: ' + BizDyali.fmtDate(biz.trialStart) + '</span>' +
-      '<span>Ends: ' + BizDyali.fmtDate(biz.trialEnd) + '</span>' +
-      '<span>' + (st.daysLeft == null ? '—' : (st.daysLeft + ' day(s) left')) + '</span>';
+      '<span>البداية: ' + BizDyali.fmtDate(biz.trialStart) + '</span>' +
+      '<span>النهاية: ' + BizDyali.fmtDate(biz.trialEnd) + '</span>' +
+      '<span>' + (st.daysLeft == null ? '—' : (st.daysLeft === 1 ? 'باقي نهار واحد' : 'باقي ' + st.daysLeft + ' أيام')) + '</span>';
     $('trialMeta').hidden = (st.status === 'draft');
     if (st.status === 'draft') {
       banner.className = 'trial-banner expired';
-      $('trialTitle').textContent = 'Your page is not published.';
-      $('trialText').innerHTML = 'Your page was moved back to draft, so customers cannot access it. Your business information is <strong>saved</strong> — please contact BizDyali to restore it.';
+      $('trialTitle').textContent = 'الصفحة ديالك ما تنشراتش.';
+      $('trialText').innerHTML = 'الصفحة رجعات برويون، الزبناء ما يقدروش يشوفوها. المعلومات ديالك <strong>محفوظة</strong> — تواصل مع BizDyali باش ترجعها.';
       $('subscribeRow').hidden = true;
-      $('visNote').textContent = 'Your page is currently unavailable to customers. Your data is safe here.';
+      $('visNote').textContent = 'الصفحة دابا ما بايناش للزبناء. المعلومات ديالك محفوظة هنا.';
     } else if (st.status === 'subscribed') {
       banner.className = 'trial-banner trial';
-      $('trialTitle').textContent = 'Your page is active — subscribed.';
-      $('trialText').innerHTML = 'Your subscription (100 MAD/month) keeps your page visible to customers. Thank you!';
+      $('trialTitle').textContent = 'الصفحة ديالك خدامة — مخلّص.';
+      $('trialText').innerHTML = 'الاشتراك ديالك (100 درهم فالشهر) مخلّي الصفحة باينة للزبناء. شكرا!';
       $('subscribeRow').hidden = true;
-      $('visNote').textContent = 'Your page is live — share the link with your customers.';
+      $('visNote').textContent = 'الصفحة ديالك خدامة — پارطاجي الرابط مع الزبناء ديالك.';
     } else if (st.status === 'suspended') {
       banner.className = 'trial-banner expired';
-      $('trialTitle').textContent = 'Your page is temporarily disabled.';
-      $('trialText').innerHTML = 'An administrator has paused your public page. Your business information is <strong>saved</strong> — please contact BizDyali support.';
+      $('trialTitle').textContent = 'الصفحة ديالك واقفة مؤقتا.';
+      $('trialText').innerHTML = 'الإدارة وقفات الصفحة ديالك مؤقتا. المعلومات ديالك <strong>محفوظة</strong> — تواصل مع دعم BizDyali.';
       $('subscribeRow').hidden = true;
-      $('visNote').textContent = 'Customers currently cannot see your page. Your data is safe here.';
+      $('visNote').textContent = 'الزبناء ما كيشوفوش الصفحة دابا. المعلومات ديالك محفوظة هنا.';
     } else if (st.status === 'expired') {
       banner.className = 'trial-banner expired';
-      $('trialTitle').textContent = 'Your free trial has ended.';
-      $('trialText').innerHTML = 'Your business information is <strong>saved</strong>. Subscribe for <strong>100 MAD/month</strong> to make your page visible to customers again.';
+      $('trialTitle').textContent = 'سالات الفترة الفابور ديالك.';
+      $('trialText').innerHTML = 'المعلومات ديالك <strong>محفوظة</strong>. خلّص <strong>100 درهم فالشهر</strong> باش ترجع الصفحة باينة للزبناء.';
       $('subscribeRow').hidden = false;
-      $('visNote').textContent = 'Customers currently see a “trial ended” notice instead of your page. Your data is safe here.';
+      $('visNote').textContent = 'الزبناء كيشوفو دابا “سالات الفترة” بلاصة الصفحة ديالك. المعلومات محفوظة هنا.';
     } else {
       banner.className = 'trial-banner trial';
-      $('trialTitle').textContent = 'Your BizDyali page is free for 14 days.';
-      $('trialText').innerHTML = 'Enjoy your trial — after that, keep your page visible for <strong>100 MAD/month</strong>. No payment needed today.';
+      $('trialTitle').textContent = 'الصفحة ديالك فابور لمدة 14 يوم.';
+      $('trialText').innerHTML = 'تمتّع بالفترة الفابور — من بعد، خلّي الصفحة باينة بـ<strong>100 درهم فالشهر</strong>. ما كتخلّص والو اليوم.';
       $('subscribeRow').hidden = true;
-      $('visNote').textContent = 'Your page is live — share the link with your customers.';
+      $('visNote').textContent = 'الصفحة ديالك خدامة — پارطاجي الرابط مع الزبناء ديالك.';
     }
   }
   $('subscribeBtn').addEventListener('click', function () {
-    showErr('Subscriptions (100 MAD/month) are not available yet — this demo does not process payments. Your data stays saved.');
+    showErr('الاشتراك (100 درهم فالشهر) ما زال ما واجد — هاد النسخة ما كتخلّصش. المعلومات ديالك محفوظة.');
   });
 
   // ---- Overview ----
@@ -122,18 +122,18 @@
       $('viewPageBtn').href = url;
       $('previewPageBtn').href = url + '&preview=1';
       // For expired/suspended pages the link shows a notice, not the business — label honestly.
-      $('viewPageBtn').textContent = live ? 'View public page →' : 'See what customers see →';
+      $('viewPageBtn').textContent = live ? 'شوف صفحة الزبناء ←' : 'شوف شنو كيشوفو الزبناء ←';
     }
   }
   $('copyLinkBtn').addEventListener('click', function () {
     var url = BizDyali.publicUrl(biz.slug);
-    function done() { showOk('Link copied ✓ — paste it on WhatsApp, Instagram or your flyers.'); }
+    function done() { showOk('تنسخ الرابط ✓ — لصّقو فواتساب، إنستغرام ولا فالمنشورات.'); }
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(done, function () { fallback(); });
     } else fallback();
     function fallback() {
       var t = document.createElement('textarea'); t.value = url; document.body.appendChild(t);
-      t.select(); try { document.execCommand('copy'); done(); } catch (e) { showErr('Copy this link: ' + url); }
+      t.select(); try { document.execCommand('copy'); done(); } catch (e) { showErr('نسخ هاد الرابط: ' + url); }
       document.body.removeChild(t);
     }
   });
@@ -169,14 +169,14 @@
     biz.facebook = $('d_facebook').value.trim();
     biz.instagram = $('d_instagram').value.trim();
     biz.offeringType = $('d_offering').value;
-    if (biz.name.length < 2) return showErr('Business name is required.');
+    if (biz.name.length < 2) return showErr('سمية المشروع ضرورية.');
     if (persist()) {
       BizDyali.logEvent('info_changed', { actor: 'owner', actorName: user.name, businessId: biz.id, businessName: biz.name, ownerId: user.id, details: 'Name, contact, hours, location or social links updated' });
       renderTrial(); renderOverview(); refreshSelect();
     }
   });
   $('deleteBtn').addEventListener('click', function () {
-    if (!confirm('Delete "' + biz.name + '" permanently? This cannot be undone.')) return;
+    if (!confirm('مسح "' + biz.name + '" نهائيا؟ هادي ما كترجعش.')) return;
     BizDyali.deleteBusiness(biz.id);
     biz = null; load(null);
   });
@@ -251,25 +251,25 @@
     items.forEach(function (it) {
       var li = document.createElement('li'); li.className = 'item-row';
       var wrap = document.createElement('div'); wrap.style.minWidth = '0';
-      var kind = document.createElement('span'); kind.className = 'item-kind'; kind.textContent = it.kind;
+      var kind = document.createElement('span'); kind.className = 'item-kind'; kind.textContent = it.kind === 'service' ? 'خدمة' : 'برودوي';
       var title = document.createElement('b'); title.textContent = it.name;
       var small = document.createElement('small');
-      small.textContent = (it.price != null && it.price !== '' ? it.price + ' MAD • ' : '') + (it.description || '').slice(0, 60);
+      small.textContent = (it.price != null && it.price !== '' ? it.price + ' درهم • ' : '') + (it.description || '').slice(0, 60);
       wrap.appendChild(kind); wrap.appendChild(document.createTextNode(' '));
       wrap.appendChild(title); wrap.appendChild(small);
       li.appendChild(wrap);
       var acts = document.createElement('div'); acts.className = 'item-actions';
-      [['↑', 'Move up', function () { moveItem(it.id, -1); }],
-       ['↓', 'Move down', function () { moveItem(it.id, 1); }],
-       ['✏️', 'Edit', function () { openEditor(it.kind, it.id); }],
-       ['🗑️', 'Delete', function () {
-          if (confirm('Delete "' + it.name + '"?')) {
+      [['↑', 'طلّع', function () { moveItem(it.id, -1); }],
+       ['↓', 'نزّل', function () { moveItem(it.id, 1); }],
+       ['✏️', 'بدّل', function () { openEditor(it.kind, it.id); }],
+       ['🗑️', 'مسح', function () {
+          if (confirm('مسح "' + it.name + '"؟')) {
             (it.photos || []).forEach(function (ph) { dropRef(ph && ph.src ? ph.src : ph); });
             biz.items = biz.items.filter(function (x) { return x.id !== it.id; });
             renumber();
             if (persist(true)) {
               BizDyali.logEvent(it.kind === 'service' ? 'service_deleted' : 'product_deleted', { actor: 'owner', actorName: user.name, businessId: biz.id, businessName: biz.name, ownerId: user.id, details: it.name });
-              renderItems(); showOk('Deleted.');
+              renderItems(); showOk('تمسحات.');
             }
           }
         }]].forEach(function (cfg) {
@@ -302,8 +302,8 @@
       $('d_it_section').value = ex.section || ''; $('d_it_badge').value = ex.badge || '';
       $('d_it_duration').value = ex.duration || '';
     } else { $('d_it_name').value = ''; $('d_it_desc').value = ''; $('d_it_price').value = ''; $('d_it_section').value = ''; $('d_it_badge').value = ''; $('d_it_duration').value = ''; }
-    $('d_editorTitle').textContent = (ex ? 'Edit ' : 'Add ') + kind;
-    $('d_nameLabel').textContent = (kind === 'product' ? 'Product' : 'Service') + ' name *';
+    $('d_editorTitle').textContent = (ex ? 'بدّل ' : 'زيد ') + (kind === 'product' ? 'برودوي' : 'خدمة');
+    $('d_nameLabel').textContent = (kind === 'product' ? 'سمية البرودوي' : 'سمية الخدمة') + ' *';
     $('d_editor').hidden = false; renderEdMedia();
     $('d_it_name').focus();
   }
@@ -319,9 +319,9 @@
       var d = document.createElement('div'); d.className = 'thumb-x';
       var img = document.createElement('img'); img.src = edThumb(p); img.alt = '';
       img.style.cssText = 'width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--line);cursor:crosshair';
-      img.title = 'Tap to set focal point';
+      img.title = 'برك باش تحدّد البلاصة المهمة';
       img.addEventListener('click', function () { openFocal(i); });
-      var x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.title = 'Remove photo';
+      var x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.title = 'حيّد التصويرة';
       x.addEventListener('click', function (ev2) {
         ev2.stopPropagation();
         var gone = edPhotos.splice(i, 1)[0];
@@ -330,7 +330,7 @@
       });
       d.appendChild(img); d.appendChild(x); t.appendChild(d);
     });
-    $('d_it_vhint').textContent = edVideo ? 'Video attached ✓' : 'No video attached.';
+    $('d_it_vhint').textContent = edVideo ? 'الفيديو تزاد ✓' : 'ما زال ما زدتي حتى فيديو.';
   }
   function openFocal(i) {
     var p = edPhotos[i];
@@ -341,7 +341,7 @@
       var img = $('d_focalImg');
       delete img.dataset.ready;
       img.onload = function () { img.dataset.ready = '1'; placeDot(); };
-      img.onerror = function () { showErr('Could not load that photo for focal preview.'); };
+      img.onerror = function () { showErr('التصويرة ما تحمّلاتش للمعاينة.'); };
       img.src = (u && u.src) || u;
       if (img.complete && img.naturalWidth) img.dataset.ready = '1';
     });
@@ -354,7 +354,7 @@
   }
   $('d_focalImg').addEventListener('click', function (e) {
     if (focalIdx < 0 || !edPhotos[focalIdx]) return;
-    if (!e.target.dataset.ready) { showErr('Photo still loading — try again in a moment.'); return; }
+    if (!e.target.dataset.ready) { showErr('التصويرة ما زال كتحمّل — عاود من بعد شوية.'); return; }
     var r = e.target.getBoundingClientRect();
     if (!r.width || !r.height) return;
     var fx = Math.round((e.clientX - r.left) / r.width * 100);
@@ -387,7 +387,7 @@
   });
   $('d_it_save').addEventListener('click', function () {
     var name = $('d_it_name').value.trim();
-    if (name.length < 2) return showErr('Please give this ' + edKind + ' a name.');
+    if (name.length < 2) return showErr('عطي شي سمية لهاد ' + (edKind === 'service' ? 'الخدمة' : 'البرودوي') + '.');
     var pr = $('d_it_price').value;
     var price = pr === '' ? null : Math.max(0, Number(pr));
     var prev = editingId ? biz.items.find(function (x) { return x.id === editingId; }) : null;
@@ -462,7 +462,7 @@
     if (!biz.lang) delete biz.lang;
     if (persist()) {
       BizDyali.logEvent('admin_action', { actor: 'owner', actorName: user.name, businessId: biz.id, businessName: biz.name, ownerId: user.id, details: 'Updated design settings' });
-      showOk('Design saved ✓ — preview your page to see it.');
+      showOk('تسجّل الديزاين ✓ — شوف الصفحة باش تشوفو.');
     }
   });
   var WEEKDAYS = [['mon', 'Monday'], ['tue', 'Tuesday'], ['wed', 'Wednesday'], ['thu', 'Thursday'], ['fri', 'Friday'], ['sat', 'Saturday'], ['sun', 'Sunday']];
@@ -498,22 +498,22 @@
     if (Object.keys(hw).length) biz.hoursWeek = hw; else delete biz.hoursWeek;
     if (persist()) {
       BizDyali.logEvent('info_changed', { actor: 'owner', actorName: user.name, businessId: biz.id, businessName: biz.name, ownerId: user.id, details: 'Updated structured opening hours' });
-      showOk('Hours saved ✓ — your “Open now” badge is live.');
+      showOk('تسجّل التوقيت ✓ — “حال دابا” خدامة دابا.');
     }
   });
   $('clearHoursBtn').addEventListener('click', function () {
     delete biz.hoursWeek;
-    if (persist()) { buildHoursEditor(); showOk('Structured hours cleared — free-text hours apply.'); }
+    if (persist()) { buildHoursEditor(); showOk('تمسح التوقيت المفصّل — التوقيت المكتوب هو اللي خدام.'); }
   });
   $('qrPosterBtn').addEventListener('click', function () {
-    if (typeof qrcode === 'undefined') return showErr('QR library not loaded. Check your connection and retry.');
+    if (typeof qrcode === 'undefined') return showErr('مكتبة QR ما تحمّلاتش. شوف الكونكسيون وعاود.');
     var url = BizDyali.publicUrl(biz.slug);
     var qr = qrcode(0, 'M');
     qr.addData(url);
     qr.make();
     var img = qr.createDataURL(8, 8);
     var w = window.open('', '_blank');
-    if (!w) return showErr('Please allow pop-ups to open the poster.');
+    if (!w) return showErr('سمح بالنوافذ المنبثقة باش تحل لآفيش.');
     w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>QR poster — ' + biz.name.replace(/</g, '&lt;') + '</title>' +
       '<style>body{font-family:Georgia,serif;text-align:center;padding:48px;color:#101814}h1{font-size:42px;margin:0 0 8px}.sub{color:#555;margin:0 0 24px}img{width:320px;height:320px}.url{font-family:monospace;font-size:13px;color:#555;margin-top:16px;word-break:break-all}.bar{width:120px;height:4px;background:#0A6B4F;margin:24px auto}@media print{.noprint{display:none}}</style></head><body>' +
       '<div class="bar"></div><h1>' + biz.name.replace(/</g, '&lt;') + '</h1>' +

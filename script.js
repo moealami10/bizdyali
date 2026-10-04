@@ -8,11 +8,11 @@
       if (open) {
         mobileMenu.removeAttribute('hidden');
         menuBtn.setAttribute('aria-expanded', 'true');
-        menuBtn.setAttribute('aria-label', 'Close menu');
+        menuBtn.setAttribute('aria-label', 'سد القائمة');
       } else {
         mobileMenu.setAttribute('hidden', '');
         menuBtn.setAttribute('aria-expanded', 'false');
-        menuBtn.setAttribute('aria-label', 'Open menu');
+        menuBtn.setAttribute('aria-label', 'حل القائمة');
       }
     });
     mobileMenu.querySelectorAll('a').forEach(function (a) {
