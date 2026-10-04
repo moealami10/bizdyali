@@ -402,7 +402,7 @@ section[id]{scroll-margin-top:84px}
   .topnav{display:block;position:fixed;top:0;left:0;right:0;z-index:60;background:var(--bp-paper);border-bottom:1px solid var(--bp-line);transform:translateY(-100%);transition:transform 300ms var(--bp-ease)}
   @supports (background:color-mix(in srgb,red 50%,blue)){.topnav{background:color-mix(in srgb,var(--bp-paper) 90%,transparent);backdrop-filter:blur(12px)}}
   .topnav.show{transform:none}
-  .topnav-in{display:flex;align-items:center;gap:1.1rem;height:64px}
+  .topnav-in{display:flex;align-items:center;gap:1.1rem;height:64px;width:min(var(--bp-max),100% - 2.5rem);margin-inline:auto}
   .topnav-brand{display:flex;align-items:center;min-width:0;max-width:34ch;text-decoration:none;color:var(--bp-ink)}
   .topnav-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--t-font-display,var(--bp-display));font-weight:600;font-size:1.12rem;letter-spacing:-.015em}
   .topnav-links{display:flex;gap:.15rem;margin-inline-start:auto;overflow:hidden}
