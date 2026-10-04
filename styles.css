@@ -74,7 +74,7 @@ a{color:inherit}
 .btn-primary:hover{background:#052A21}
 .btn-accent{background:var(--amber);color:#231A00}
 .btn-accent:hover{filter:brightness(.95)}
-.btn-ghost{background:var(--card);border-color:var(--line);color:var(--ink)}
+.btn-ghost{background:var(--card);border-color:var(--line);color:var(--ink);padding:.7rem 1.2rem}
 .btn-ghost:hover{border-color:var(--ink)}
 .btn-outline{border-color:var(--green);color:var(--green);padding:.7rem 1.2rem}
 .btn-outline:hover{background:var(--green);color:#fff}
