@@ -65,6 +65,30 @@
       var langVal = $('f_lang').value;
       if (langVal) draft.lang = langVal; else delete draft.lang;
     }
+    if (s === 4) {
+      var lookBtn = document.querySelector('#w_lookPills .pill[aria-pressed="true"]');
+      var lookVal = lookBtn ? (lookBtn.dataset.look || '') : '';
+      var accBtn = document.querySelector('#w_accentPills .pill[aria-pressed="true"]');
+      var accMode = accBtn ? accBtn.dataset.accentmode : 'auto';
+      var th = draft.theme || {};
+      if (lookVal) th.look = lookVal; else delete th.look;
+      if (accMode === 'custom' && /^#[0-9a-f]{6}$/i.test($('w_accentColor').value)) th.accent = $('w_accentColor').value;
+      else delete th.accent;
+      var modeVal = $('w_mode').value;
+      if (modeVal === 'dark') th.mode = 'dark'; else delete th.mode;
+      if (Object.keys(th).length) draft.theme = th; else delete draft.theme;
+      var hw = {};
+      WDAYS.forEach(function (d) {
+        var on = document.querySelector('[data-whw-day="' + d[0] + '"]');
+        if (on && on.checked) {
+          var o = document.querySelector('[data-whw-open="' + d[0] + '"]').value || '09:00';
+          var c = document.querySelector('[data-whw-close="' + d[0] + '"]').value || '18:00';
+          hw[d[0]] = [[o, c]];
+        }
+      });
+      if (Object.keys(hw).length) draft.hoursWeek = hw; else delete draft.hoursWeek;
+      var hw = {};
+    }
   }
 
   function validStep1() {
@@ -78,6 +102,49 @@
     if (draft.hours.length < 3) return 'Please enter your opening hours.';
     return null;
   }
+
+  var WDAYS = [['mon', 'Monday'], ['tue', 'Tuesday'], ['wed', 'Wednesday'], ['thu', 'Thursday'], ['fri', 'Friday'], ['sat', 'Saturday'], ['sun', 'Sunday']];
+  function buildWHours() {
+    var host = $('w_hoursWeek'); if (!host || host.children.length) return;
+    var hw = draft.hoursWeek || {};
+    WDAYS.forEach(function (d) {
+      var key = d[0], label = d[1];
+      var ranges = hw[key] || [];
+      var open = ranges.length > 0;
+      var row = document.createElement('div');
+      row.className = 'two-col';
+      row.innerHTML = '<label class="field" style="font-size:.85rem"><span><input type="checkbox" data-whw-day="' + key + '"' + (open ? ' checked' : '') + ' /> ' + label + '</span></label>' +
+        '<span style="display:flex;gap:.4rem;align-items:center"><input type="time" data-whw-open="' + key + '" value="' + (open ? ranges[0][0] : '09:00') + '" aria-label="' + label + ' opens" />–<input type="time" data-whw-close="' + key + '" value="' + (open ? ranges[0][1] : '18:00') + '" aria-label="' + label + ' closes" /></span>';
+      host.appendChild(row);
+    });
+  }
+  function fillDesign() {
+    var th = draft.theme || {};
+    document.querySelectorAll('#w_lookPills .pill').forEach(function (b) {
+      b.setAttribute('aria-pressed', (b.dataset.look || '') === (th.look || ''));
+    });
+    var custom = !!th.accent;
+    document.querySelectorAll('#w_accentPills .pill').forEach(function (b) {
+      b.setAttribute('aria-pressed', (b.dataset.accentmode === 'custom') === custom);
+    });
+    $('w_customColorWrap').hidden = !custom;
+    if (th.accent) $('w_accentColor').value = th.accent;
+    $('w_mode').value = th.mode === 'dark' ? 'dark' : '';
+    buildWHours();
+  }
+  document.querySelectorAll('#w_lookPills .pill').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('#w_lookPills .pill').forEach(function (q) { q.setAttribute('aria-pressed', q === b); });
+      touchSave();
+    });
+  });
+  document.querySelectorAll('#w_accentPills .pill').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('#w_accentPills .pill').forEach(function (q) { q.setAttribute('aria-pressed', q === b); });
+      $('w_customColorWrap').hidden = b.dataset.accentmode !== 'custom';
+      touchSave();
+    });
+  });
 
   // ---- Step navigation ----
   var bar = $('stepsBar').querySelectorAll('li');
@@ -97,10 +164,10 @@
       li.classList.toggle('active', k === step);
       li.classList.toggle('done', k < step);
     });
-    if (step === 4) BizRender.renderPublicPage(draft, $('previewMount'));
-    if (step === 5 && !$('f_slug').value) $('f_slug').value = BizDyali.slugify(draft.name);
-    // Leaving step 5 resets the empty-catalog confirmation.
-    if (n !== 5 && publishBtnLabel !== null) {
+    if (step === 5) BizRender.renderPublicPage(draft, $('previewMount'));
+    if (step === 6 && !$('f_slug').value) $('f_slug').value = BizDyali.slugify(draft.name);
+    // Leaving step 6 resets the empty-catalog confirmation.
+    if (n !== 6 && publishBtnLabel !== null) {
       confirmEmptyPublish = false;
       $('pubWarn').hidden = true;
       $('publishBtn').textContent = publishBtnLabel;
@@ -271,7 +338,7 @@
     hideErr(); touchSave(); renderItems();
   });
 
-  // ---- Step 5: publish ----
+  // ---- Step 6: publish ----
   if (publishBtnLabel === null) publishBtnLabel = $('publishBtn').textContent;
   $('publishBtn').addEventListener('click', function () {
     collectStep(1);
@@ -303,5 +370,6 @@
     });
 
   fill();
+  fillDesign();
   go(1);
 })();

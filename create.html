@@ -23,14 +23,15 @@
   <main class="app-wrap">
     <p class="kicker">Page creator • <span id="saveState">Draft saved</span></p>
     <h1 class="page-title">Create your business page</h1>
-    <p class="page-sub">Five small steps. Your work saves automatically — you can leave and come back anytime.</p>
+    <p class="page-sub">Six small steps. Your work saves automatically — you can leave and come back anytime.</p>
 
     <ol class="steps-bar" id="stepsBar">
       <li data-s="1"><i>1</i>Information</li>
       <li data-s="2"><i>2</i>Branding</li>
       <li data-s="3"><i>3</i>Products &amp; services</li>
-      <li data-s="4"><i>4</i>Preview</li>
-      <li data-s="5"><i>5</i>Publish</li>
+      <li data-s="4"><i>4</i>Design &amp; hours</li>
+      <li data-s="5"><i>5</i>Preview</li>
+      <li data-s="6"><i>6</i>Publish</li>
     </ol>
 
     <div id="wizErr" class="form-err" hidden></div>
@@ -169,20 +170,65 @@
 
         <div class="btn-row">
           <button class="btn btn-ghost" data-back>← Back</button>
-          <button class="btn btn-primary btn-lg" data-next>Preview my page →</button>
+          <button class="btn btn-primary btn-lg" data-next>Continue →</button>
         </div>
       </div>
     </section>
 
     <!-- STEP 4 -->
     <section class="wizard-step" data-step="4">
-      <p class="kicker">Step 4 — Preview</p>
+      <div class="card">
+        <p class="kicker">Step 4 — Design &amp; hours</p>
+        <h2 class="page-title" style="font-size:1.3rem">Make it yours</h2>
+        <p class="page-sub">The look is chosen automatically — everything below is optional. Skip whatever you like.</p>
+        <div class="form-grid">
+          <div class="field">
+            <span style="font-weight:600;font-size:.9rem">Look</span>
+            <span class="pills" id="w_lookPills" role="group" aria-label="Look">
+              <button type="button" class="pill" data-look="" aria-pressed="true">Auto</button>
+              <button type="button" class="pill" data-look="editorial" aria-pressed="false">Editorial</button>
+              <button type="button" class="pill" data-look="atelier" aria-pressed="false">Atelier</button>
+              <button type="button" class="pill" data-look="boutique" aria-pressed="false">Boutique</button>
+              <button type="button" class="pill" data-look="workshop" aria-pressed="false">Workshop</button>
+              <button type="button" class="pill" data-look="market" aria-pressed="false">Market</button>
+            </span>
+          </div>
+          <div class="field">
+            <span style="font-weight:600;font-size:.9rem">Accent color</span>
+            <span class="pills" id="w_accentPills" role="group" aria-label="Accent">
+              <button type="button" class="pill" data-accentmode="auto" aria-pressed="true">Auto</button>
+              <button type="button" class="pill" data-accentmode="custom" aria-pressed="false">Custom…</button>
+            </span>
+          </div>
+          <label class="field" id="w_customColorWrap" hidden>Custom accent
+            <input type="color" id="w_accentColor" value="#0A6B4F" style="height:48px;padding:.3rem" />
+          </label>
+          <label class="field">Dark mode (Atelier look)
+            <select id="w_mode">
+              <option value="">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+        </div>
+        <h3 style="font-size:1.05rem;margin:1.2rem 0 .2rem">Opening hours <span class="hint" style="font-weight:400">(optional — for a live “Open now” badge)</span></h3>
+        <div class="form-grid" id="w_hoursWeek"></div>
+        <div class="btn-row">
+          <button class="btn btn-ghost" data-back>← Back</button>
+          <button class="btn btn-primary btn-lg" data-next>Preview my page →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 5 -->
+    <section class="wizard-step" data-step="5">
+      <p class="kicker">Step 5 — Preview</p>
       <h2 class="page-title" style="font-size:1.3rem">This is what customers will see</h2>
       <p class="page-sub">Check everything on mobile and desktop. Go back to fix anything — nothing is public yet.</p>
       <div class="btn-row" style="margin-bottom:1rem">
         <button class="btn btn-ghost" data-goto="1">Edit information</button>
         <button class="btn btn-ghost" data-goto="2">Edit branding</button>
         <button class="btn btn-ghost" data-goto="3">Edit products / services</button>
+        <button class="btn btn-ghost" data-goto="4">Edit design</button>
       </div>
       <div id="previewMount"></div>
       <div class="btn-row">
@@ -191,10 +237,10 @@
       </div>
     </section>
 
-    <!-- STEP 5 -->
-    <section class="wizard-step" data-step="5">
+    <!-- STEP 6 -->
+    <section class="wizard-step" data-step="6">
       <div class="card">
-        <p class="kicker">Step 5 — Publish</p>
+        <p class="kicker">Step 6 — Publish</p>
         <h2 class="page-title" style="font-size:1.3rem">Publish your page 🎉</h2>
         <p class="page-sub">Your page goes live immediately with <strong>14 days free</strong>. After the trial, it stays visible for <strong>100 MAD/month</strong> (no payment needed today).</p>
         <label class="field">Your BizDyali link
