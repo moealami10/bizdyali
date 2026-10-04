@@ -377,3 +377,67 @@
 [dir="rtl"] .bp-lb-nav.prev{left:auto;right:.7rem}
 [dir="rtl"] .bp-lb-nav.next{right:auto;left:.7rem}
 [dir="rtl"] .bp-foot .flinks span{transform:scaleX(-1);display:inline-block}
+
+/* ============================================================
+   Desktop composition (design-system level).
+   All rules live behind min-width gates: mobile untouched.
+   ============================================================ */
+section[id]{scroll-margin-top:84px}
+.topnav{display:none}
+@media(min-width:1024px){
+  .bp{--bp-max:1160px}
+  .bp{--bp-fs-hero:clamp(2.6rem,1.4rem + 4.2vw,4.4rem)}
+  .bp-sec{margin-top:clamp(3.2rem,6vw,5rem)}
+
+  /* Slim sticky desktop header (JS toggles .show past the hero) */
+  .topnav{display:block;position:fixed;top:0;left:0;right:0;z-index:60;background:var(--bp-paper);border-bottom:1px solid var(--bp-line);transform:translateY(-100%);transition:transform 300ms var(--bp-ease)}
+  @supports (background:color-mix(in srgb,red 50%,blue)){.topnav{background:color-mix(in srgb,var(--bp-paper) 90%,transparent);backdrop-filter:blur(12px)}}
+  .topnav.show{transform:none}
+  .topnav-in{display:flex;align-items:center;gap:1.1rem;height:64px}
+  .topnav-brand{display:flex;align-items:center;gap:.6rem;min-width:0;max-width:34ch;text-decoration:none;color:var(--bp-ink);font-weight:800}
+  .topnav-mono{width:32px;height:32px;flex:none;border-radius:10px;overflow:hidden;background:var(--bp-deep);color:#fff;display:grid;place-items:center;font-family:var(--bp-display);font-weight:700;font-size:1rem}
+  .topnav-mono img{width:100%;height:100%;object-fit:cover}
+  .topnav-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .topnav-links{display:flex;gap:.15rem;margin-inline-start:auto;overflow:hidden}
+  .topnav-name{max-width:22ch}
+  @media(min-width:1440px){.topnav-name{max-width:34ch}}
+  .topnav-links a{color:var(--bp-muted);text-decoration:none;font-weight:700;font-size:.86rem;padding:.5rem .8rem;border-radius:999px;white-space:nowrap}
+  .topnav-links a:hover{color:var(--bp-ink)}
+  .topnav-links a.on{background:var(--t-deep,var(--bp-inkbar));color:#fff}
+  .topnav-cta{flex:none;display:inline-flex;align-items:center;gap:.45rem;background:var(--t-deep,var(--bp-deep));color:#fff;text-decoration:none;font-weight:800;font-size:.86rem;border-radius:999px;padding:.55rem 1.1rem}
+
+  /* Hero: cinematic scale + horizontal action row */
+  .bp-cover{height:clamp(480px,58vh,700px)}
+  .bp-hero-in{padding-bottom:clamp(6rem,8vw,8rem)}
+  .bp-id-grid{grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:1rem 4rem}
+  .bp-actions{flex-direction:row;align-items:center}
+  .bp-actions .btn-bp{width:auto;flex:0 1 auto}
+  .bp-actions .btn-wa{padding-inline:2rem}
+  .bp-split-media{min-height:340px}
+  .bp-hero-split{grid-template-columns:1.02fr .98fr;gap:3rem}
+
+  /* Catalogue: wider editorial, 2-up rows, roomier grid */
+  .feat-item{grid-template-columns:1.08fr .92fr;gap:3rem}
+  .rows{display:grid;grid-template-columns:1fr 1fr;column-gap:2.5rem;align-content:start}
+  .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 3rem}
+  .quotes{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:1.6rem}
+
+  /* Gallery: mosaic grid instead of swipe strip */
+  .strip{grid-auto-flow:row;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:220px;overflow:visible}
+  .strip-cell img{height:100%}
+  .strip-cell:first-child{grid-column:span 2;grid-row:span 2}
+
+  /* Footer: brand + sections zones */
+  .foot-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,.65fr);gap:2rem 4rem;align-items:start}
+  .flinks-nav{display:flex;flex-direction:column;gap:.15rem;border-inline-start:1px solid rgba(255,255,255,.14);padding-inline-start:1.6rem}
+  .flinks-nav a{color:#C9D4CE;text-decoration:none;font-weight:600;font-size:.9rem;padding:.4rem 0;width:fit-content}
+  .flinks-nav a:hover{color:var(--bp-goldbright)}
+}
+@media(min-width:1440px){
+  .bp{--bp-max:1280px}
+  .bp{--bp-fs-hero:clamp(3rem,1.8rem + 4vw,5rem)}
+  .grid{grid-template-columns:repeat(4,1fr)}
+}
+@media (prefers-reduced-motion:reduce){
+  .topnav{transition:none}
+}

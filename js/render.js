@@ -327,7 +327,7 @@
   function quotesHtml(biz, T) {
     var qs = (biz.testimonials || []).filter(function (q) { return q && q.text; }).slice(0, 3);
     if (!qs.length) return '';
-    return '<section class="bp-sec" aria-label="Reviews"><div class="bp-sec-head rv">' + ic('message-circle') + '<h2>' + esc('Reviews') + '</h2></div>' +
+    return '<section class="bp-sec" id="sec-reviews" aria-label="Reviews"><div class="bp-sec-head rv">' + ic('message-circle') + '<h2>' + esc(T('testimonials')) + '</h2></div>' +
       '<div class="quotes">' + qs.map(function (q) {
         return '<figure class="quote rv"><blockquote dir="auto">“' + esc(q.text) + '”</blockquote>' +
           (q.author ? '<figcaption>— ' + esc(q.author) + '</figcaption>' : '') + '</figure>';
@@ -342,11 +342,32 @@
     }).join('') + '</div>';
   }
 
-  function footerHtml(biz, T) {
+  function footerHtml(biz, T, nav) {
     var sub = [biz.city, biz.hours].filter(Boolean).join(' \u00b7 ');
-    return '<footer class="bp-foot"><div class="wrap"><p class="fname" dir="auto">' + esc(biz.name) + '</p>' +
+    var flinks = (nav || []).map(function (n) {
+      return '<a href="#' + n.id + '" data-secgo="' + n.id + '">' + esc(n.label) + '</a>';
+    }).join('');
+    return '<footer class="bp-foot"><div class="wrap foot-grid"><div class="foot-brand"><p class="fname" dir="auto">' + esc(biz.name) + '</p>' +
       (sub ? '<p class="fsub" dir="auto">' + esc(sub) + '</p>' : '') +
-      '<p class="flinks"><button class="flink-share" data-share type="button">' + ic('share-2') + '<span>' + esc(T('share')) + '</span></button></p></div></footer>';
+      '<p class="flinks"><button class="flink-share" data-share type="button">' + ic('share-2') + '<span>' + esc(T('share')) + '</span></button></p></div>' +
+      (flinks ? '<nav class="flinks-nav" aria-label="Sections">' + flinks + '</nav>' : '') + '</div></footer>';
+  }
+
+  function topnavHtml(biz, T, nav) {
+    var mono = biz.logo
+      ? '<span class="topnav-mono"><img class="ld" src="' + photoSrc(biz.logo) + '" alt="" loading="lazy" decoding="async" /></span>'
+      : '<span class="topnav-mono" aria-hidden="true">' + esc(String(biz.name || '?').charAt(0)) + '</span>';
+    var links = (nav || []).map(function (n, i) {
+      return '<a href="#' + n.id + '" data-secgo="' + n.id + '"' + (i === 0 ? ' class="on"' : '') + '>' + esc(n.label) + '</a>';
+    }).join('');
+    var cta = biz.whatsapp
+      ? '<a class="topnav-cta" href="' + waLink(biz.whatsapp, 'Hello ' + biz.name + '! I found you on BizDyali.') + '" target="_blank" rel="noopener">' + ic('message-circle') + '<span>WhatsApp</span></a>'
+      : '';
+    if (!links && !cta) return '';
+    return '<header class="topnav" data-topnav><div class="wrap topnav-in">' +
+      '<a class="topnav-brand" href="#top" data-sectop title="' + esc(biz.name) + '">' + mono +
+      '<span class="topnav-name" dir="auto">' + esc(biz.name) + '</span></a>' +
+      (links ? '<nav class="topnav-links" aria-label="Sections">' + links + '</nav>' : '') + cta + '</div></header>';
   }
 
   function barHtml(biz, T) {
@@ -571,7 +592,7 @@
     if (infoHtmlOut) { sections.push({ id: 'sec-info', label: T('goodToKnow') }); html += infoHtmlOut; }
     var quotesOut = quotesHtml(biz, T);
     if (quotesOut) { sections.push({ id: 'sec-reviews', label: T('testimonials') }); html += quotesOut; }
-    html += socialHtml(biz, T) + footerHtml(biz, T) + '</div>';
+    html += socialHtml(biz, T) + footerHtml(biz, T, sections) + '</div>';
 
     // Section pill nav (only when the page is long enough to need it).
     var navHtml = '';
@@ -584,12 +605,15 @@
     mount.innerHTML = html;
     mount._lbReg = lbReg;
     mount._bizRef = { biz: biz, T: T, lang: lang, look: look, basketOn: basketOn };
-    if (bar) mount.insertAdjacentHTML('afterend', bar + navHtml + (basketOn ? orderBarHtml(biz, T) : ''));
+    var topnav = (opts.chrome && sections.length) ? topnavHtml(biz, T, sections) : '';
+    if (bar) mount.insertAdjacentHTML('afterend', bar + navHtml + topnav + (basketOn ? orderBarHtml(biz, T) : ''));
     else {
       var oldBar = mount.parentElement ? mount.parentElement.querySelector('[data-bar]') : null;
       if (oldBar) oldBar.remove();
       var oldNav = mount.parentElement ? mount.parentElement.querySelector('[data-secnav]') : null;
       if (oldNav) oldNav.remove();
+      var oldTop = mount.parentElement ? mount.parentElement.querySelector('[data-topnav]') : null;
+      if (oldTop) oldTop.remove();
       var oldOrd = mount.parentElement ? mount.parentElement.querySelector('[data-orderbar]') : null;
       if (oldOrd) oldOrd.remove();
     }
@@ -758,6 +782,41 @@
         });
       }
     } else if (secnav) { secnav.remove(); }
+
+    // Slim desktop header: same sections, appears once the hero scrolls away.
+    var topnav = document.querySelector('[data-topnav]');
+    var heroSentinel = mount.querySelector('[data-sentinel]');
+    function goSec(id) {
+      var t = document.getElementById(id);
+      if (t) t.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    }
+    // Footer section links smooth-scroll everywhere (all widths).
+    Array.prototype.forEach.call(mount.querySelectorAll('.flinks-nav [data-secgo]'), function (a) {
+      a.addEventListener('click', function (e) { e.preventDefault(); goSec(a.getAttribute('data-secgo')); });
+    });
+    if (topnav && !(document.body.scrollHeight > window.innerHeight * 2.2)) { topnav.remove(); topnav = null; }
+    if (topnav && heroSentinel && 'IntersectionObserver' in window) {
+      var tio = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) { topnav.classList.toggle('show', !en.isIntersecting && window.scrollY > 240); });
+      }, { threshold: 0 });
+      tio.observe(heroSentinel);
+      var tsecs = Array.prototype.slice.call(mount.querySelectorAll('section[id]'));
+      var tio2 = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+          if (!en.isIntersecting) return;
+          var id = en.target.id;
+          Array.prototype.forEach.call(topnav.querySelectorAll('[data-secgo]'), function (a) {
+            a.classList.toggle('on', a.getAttribute('data-secgo') === id);
+          });
+        });
+      }, { rootMargin: '-40% 0px -55% 0px' });
+      tsecs.forEach(function (x) { tio2.observe(x); });
+      Array.prototype.forEach.call(topnav.querySelectorAll('[data-secgo]'), function (a) {
+        a.addEventListener('click', function (e) { e.preventDefault(); goSec(a.getAttribute('data-secgo')); });
+      });
+      var toTop = topnav.querySelector('[data-sectop]');
+      if (toTop) toTop.addEventListener('click', function (e) { e.preventDefault(); window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' }); });
+    } else if (topnav) { topnav.remove(); }
 
     // Sticky mobile action bar visibility (customer pages only, not previews)
     var bar = document.querySelector('[data-bar]');
