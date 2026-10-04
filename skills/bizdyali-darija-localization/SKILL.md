@@ -55,7 +55,7 @@ Surfaces and their string sources:
 
 | Surface | Where strings live |
 |---|---|
-| Public page UI (badges, buttons, gallery, hours) | `js/i18n.js` `STRINGS` table (~35 keys; current `ar` column is MSA — it is the translation target, key by key) |
+| Public page UI (badges, buttons, gallery, hours) | `js/i18n.js` `STRINGS` table (48 keys; current `ar` column is MSA — it is the translation target, key by key) |
 | Homepage marketing | `index.html` (hero, features, how-it-works, services, pricing, footer) |
 | Wizard (6 steps) | `create.html` + validation messages in `js/wizard.js` (`Please enter…`, confirm-empty-publish) |
 | Owner dashboard | `dashboard.html` + lifecycle banners in `js/dashboard.js` (trial/active/expired/disabled/draft states) |
