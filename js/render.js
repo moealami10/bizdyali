@@ -354,9 +354,6 @@
   }
 
   function topnavHtml(biz, T, nav) {
-    var mono = biz.logo
-      ? '<span class="topnav-mono"><img class="ld" src="' + photoSrc(biz.logo) + '" alt="" loading="lazy" decoding="async" /></span>'
-      : '<span class="topnav-mono" aria-hidden="true">' + esc(String(biz.name || '?').charAt(0)) + '</span>';
     var links = (nav || []).map(function (n, i) {
       return '<a href="#' + n.id + '" data-secgo="' + n.id + '"' + (i === 0 ? ' class="on"' : '') + '>' + esc(n.label) + '</a>';
     }).join('');
@@ -365,7 +362,7 @@
       : '';
     if (!links && !cta) return '';
     return '<header class="topnav" data-topnav><div class="wrap topnav-in">' +
-      '<a class="topnav-brand" href="#top" data-sectop title="' + esc(biz.name) + '">' + mono +
+      '<a class="topnav-brand" href="#top" data-sectop title="' + esc(biz.name) + '">' +
       '<span class="topnav-name" dir="auto">' + esc(biz.name) + '</span></a>' +
       (links ? '<nav class="topnav-links" aria-label="Sections">' + links + '</nav>' : '') + cta + '</div></header>';
   }
