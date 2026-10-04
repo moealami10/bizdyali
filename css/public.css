@@ -405,6 +405,7 @@ section[id]{scroll-margin-top:84px}
   .topnav-in{display:flex;align-items:center;gap:1.1rem;height:64px;width:min(var(--bp-max),100% - 2.5rem);margin-inline:auto}
   .topnav-brand{display:flex;align-items:center;min-width:0;max-width:34ch;text-decoration:none;color:var(--bp-ink)}
   .topnav-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--t-font-display,var(--bp-display));font-weight:600;font-size:1.12rem;letter-spacing:-.015em}
+  .topnav-name:dir(ltr){font-style:italic}
   .topnav-links{display:flex;gap:.15rem;margin-inline-start:auto;overflow:hidden}
   .topnav-name{max-width:22ch}
   @media(min-width:1440px){.topnav-name{max-width:34ch}}
