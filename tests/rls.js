@@ -168,7 +168,7 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   t('admin: reads profiles', Array.isArray(r.json) && r.json.length >= 3, (r.json || []).length);
 
   // Constraint matrix: one positive, one negative per rule (A inserts, A reads back).
-  const GOOD_PHOTO = 'https://xyz.supabase.co/storage/v1/object/public/business-media/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222.jpg';
+  const GOOD_PHOTO = 'https://xyz123abc.supabase.co/storage/v1/object/public/business-media/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222.jpg';
   const baseBiz = (slug, patch) => Object.assign({ owner_id: 'A', slug, name: 'Constraint Biz', category: 'Café',
     description: '0123456789abcdef', phone: '+1000', whatsapp: '+1000', city: 'X', hours: 'h',
     logo: GOOD_PHOTO, cover: GOOD_PHOTO,
@@ -193,7 +193,9 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
     ['item 5 photos', { items: [{ id: 'i1', kind: 'product', name: 'P', photos: [GOOD_PHOTO, GOOD_PHOTO, GOOD_PHOTO, GOOD_PHOTO, GOOD_PHOTO] }] }],
     ['item photo scheme', { items: [{ id: 'i1', kind: 'product', name: 'P', photos: ['https://evil.com/x.jpg'] }] }],
     ['item video scheme', { items: [{ id: 'i1', kind: 'product', name: 'P', video: 'https://evil.com/v.mp4' }] }],
-    ['item video ext', { items: [{ id: 'i1', kind: 'product', name: 'P', video: 'https://xyz.supabase.co/storage/v1/object/public/business-media/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222.mov' }] }],
+    ['item video ext', { items: [{ id: 'i1', kind: 'product', name: 'P', video: 'https://xyz123abc.supabase.co/storage/v1/object/public/business-media/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222.mov' }] }],
+    ['evil query-smuggle', { logo: 'https://evil.com/x.png?/storage/v1/object/public/business-media/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222.jpg' }],
+    ['evil host canonical path', { logo: 'https://evil.com/storage/v1/object/public/business-media/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222.jpg' }],
     ['accent malformed', { theme: { accent: 'red' } }],
     ['accent non-hex', { theme: { accent: '#zzzzzz' } }],
     ['testimonials 11', { testimonials: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] }],
