@@ -21,7 +21,9 @@ const TOK = { anon: null, A: process.env.TEST_TOKEN_A || null, B: process.env.TE
 const USERS = [
   { tag: 'A', email: 'rls-a@example.com', password: 'Secret123!', phone: '15550001111', name: 'User A' },
   { tag: 'B', email: 'rls-b@example.com', password: 'Secret123!', phone: '15550002222', name: 'User B' },
-  { tag: 'admin', email: 'rls-admin@example.com', password: 'Secret123!', phone: '15550003333', name: 'Admin' }
+  { tag: 'admin', email: 'rls-admin@example.com', password: 'Secret123!', phone: '15550003333', name: 'Admin' },
+  { tag: 'nophone', email: 'rls-nophone@example.com', password: 'Secret123!', name: 'No Phone' },
+  { tag: 'plus', email: 'rls-plus@example.com', password: 'Secret123!', phone: '+15550004444', name: 'Plus' }
 ];
 async function svcReq(path, method, body) {
   const r = await fetch(BASE + path, { method: method || 'GET',
@@ -90,6 +92,8 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   await mkBiz(B, 'rls-b-expired', { trial_end: new Date(Date.now() - 86400000).toISOString() });
   await mkBiz(B, 'rls-b-susp', { suspended: true });
 
+  const newSlugs = [];
+
   // ANON surface.
   let r = await rest('anon', 'businesses', '?select=id&limit=1');
   t('anon: no direct table reads', (Array.isArray(r.json) && r.json.length === 0) || r.status === 401, r.status);
@@ -151,15 +155,28 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   // publish_business: validates, sets trial once, never extends.
   r = await rpc('A', 'publish_business', { p_slug: 'bad slug!!', p_data: {} });
   t('publish: bad slug rejected', r.status === 400 || (r.json && (r.json.code || r.json.message)), r.status);
-  const before = await rest('A', 'businesses', '?slug=eq.rls-a-live&select=trial_end');
-  r = await rpc('A', 'publish_business', { p_slug: 'rls-a-live', p_data: { name: 'A Live Again', category: 'Café', description: '0123456789abcdef' } });
-  const afterPub = await rest('A', 'businesses', '?slug=eq.rls-a-live&select=trial_end');
-  t('publish: trial never extended', JSON.stringify((before.json || [])[0]) === JSON.stringify((afterPub.json || [])[0]), [before.json, afterPub.json]);
+  r = await rpc('A', 'publish_business', { p_slug: 'rls-pub1', p_data: { name: 'Pub One', category: 'Café', description: '0123456789abcdef' } });
+  t('publish: fresh row publishes', r.json && r.json.slug === 'rls-pub1' && !!r.json.trial_end, (r.json || {}).slug);
+  const t1 = new Date((r.json || {}).trial_end).getTime();
+  t('publish: trial ~14d out', t1 > Date.now() + 13 * 86400000 && t1 < Date.now() + 15 * 86400000, (r.json || {}).trial_end);
+  newSlugs.push('rls-pub1');
+  r = await rpc('A', 'publish_business', { p_slug: 'rls-pub1', p_data: { name: 'Pub One Again', category: 'Café', description: '0123456789abcdef' } });
+  t('publish: republish never extends', (r.json || {}).trial_end === new Date(t1).toISOString(), (r.json || {}).trial_end);
+  // legacy null-trial row gets filled once, then frozen
+  await req('svc', '/rest/v1/businesses', { method: 'POST', body: JSON.stringify({ owner_id: A, slug: 'rls-nulltrial', name: 'Null Trial', category: 'Café', description: '0123456789abcdef', published: true }) });
+  newSlugs.push('rls-nulltrial');
+  r = await rpc('A', 'publish_business', { p_slug: 'rls-nulltrial', p_data: { name: 'Null Trial', category: 'Café', description: '0123456789abcdef' } });
+  t('publish: null trial filled', !!(r.json || {}).trial_end, (r.json || {}).trial_end);
 
-  // Admin paths: direct writes pass through (server-verified), owners revert.
+  r = await req('A', '/rest/v1/businesses?slug=eq.rls-a-live', { method: 'PATCH', body: JSON.stringify({ is_demo: true, subscription: 'active', trial_end: new Date(Date.now() + 999 * 86400000).toISOString() }) });
+  t('owner: is_demo+billing PATCH denied', r.status === 403 || r.status === 400, r.status);
+  const still = await rest('A', 'businesses', '?slug=eq.rls-a-live&select=subscription');
+  t('owner: billing unchanged', ((still.json || [])[0] || {}).subscription === 'none', still.json);
+  // Admin paths go through admin_set_status (server-verified); owners revert.
   r = await req('admin', '/rest/v1/businesses?slug=eq.rls-b-live', { method: 'PATCH', body: JSON.stringify({ subscription: 'active' }) });
+  await req('admin', '/rest/v1/businesses?slug=eq.rls-b-live', { method: 'PATCH', body: JSON.stringify({ subscription: 'active' }) });
   const admRow = await rest('admin', 'businesses', '?slug=eq.rls-b-live&select=subscription');
-  t('admin: direct status write allowed', ((admRow.json || [])[0] || {}).subscription === 'active', admRow.json);
+  t('admin: direct status write denied by grant', ((admRow.json || [])[0] || {}).subscription === 'none', admRow.json);
   r = await rpc('A', 'admin_set_status', { p_business_id: '00000000-0000-0000-0000-000000000000', p_trial_end: null, p_subscription: 'active', p_suspended: false });
   t('A: admin RPC denied', r.status === 400 || (r.json && (r.json.code || r.json.message)), r.status);
   const bizId = ((await rest('admin', 'businesses', '?slug=eq.rls-b-live&select=id')).json || [])[0].id;
@@ -210,7 +227,6 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
     const rr = await req('A', '/rest/v1/businesses', { method: 'POST', body: JSON.stringify(baseBiz(slug, patch)) });
     return rr.status;
   }
-  const newSlugs = [];
   t('constraint: valid full row accepted', (await (async () => { const st = await tryInsert('rls-ok-full', {}); newSlugs.push('rls-ok-full'); return st; })()) === 201, 'valid insert');
   const negs = [
     ['slug too short', { slug: 'x' }],
@@ -238,6 +254,22 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
     const st = await tryInsert(slug, negs[i][1]);
     t('constraint rejects: ' + negs[i][0], st >= 400, st);
   }
+
+  // Email-only session (no phone claim): locked out of owner paths.
+  r = await rest('nophone', 'businesses', '?select=slug&limit=1');
+  t('nophone: reads denied', Array.isArray(r.json) && r.json.length === 0, r.json);
+  r = await req('nophone', '/rest/v1/drafts', { method: 'POST', body: JSON.stringify({ owner_id: ids.nophone, data: {} }) });
+  t('nophone: draft insert denied', r.status === 403 || r.status === 401, r.status);
+  r = await rpc('nophone', 'publish_business', { p_slug: 'rls-nope', p_data: { name: 'Nope', category: 'Café', description: '0123456789abcdef' } });
+  t('nophone: publish denied (phone required)', r.status === 400 || (r.json && (r.json.code || r.json.message)), r.status);
+  // Plus-prefixed phone lands canonical (no '+') via the trigger.
+  r = await svcReq('/rest/v1/profiles?select=phone&id=eq.' + ids.plus, 'GET');
+  t('plus phone stripped', ((r.json || [])[0] || {}).phone === '15550004444', r.json);
+  // Null item kind rejected; overlong profile name rejected.
+  r = await req('A', '/rest/v1/businesses', { method: 'POST', body: JSON.stringify({ slug: 'rls-nullkind', name: 'NK', category: 'Café', description: '0123456789abcdef', items: [{ id: 'x', name: 'NoKind' }] }) });
+  t('null item kind rejected', r.status >= 400, r.status);
+  r = await req('A', '/rest/v1/profiles?id=eq.' + A, { method: 'PATCH', body: JSON.stringify({ name: 'n'.repeat(121) }) });
+  t('121-char profile name rejected', r.status >= 400, r.status);
 
   // Cleanup (service role).
   for (const slug of ['rls-a-live', 'rls-b-live', 'rls-b-expired', 'rls-b-susp', 'rls-forged', 'rls-own-raw', 'rls-ok-full'].concat(newSlugs.filter(x => x !== 'rls-ok-full')))

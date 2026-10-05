@@ -27,6 +27,12 @@ service key as its JWT secret; or set `TEST_TOKEN_A/B/ADMIN` to real
 session tokens instead of minted ones. Expect all-green; the script cleans
 up its own rows. Any FAIL blocks cutover.
 
+## 2b. Lock the auth surface (launch blocker, AFTER tests/rls.js is green)
+The RLS suite signs in via email+password, so this comes strictly after step 2:
+- [ ] Dashboard → Authentication → Providers: disable **Email** and **Anonymous**
+      sign-ins (phone-OTP only). Re-run `node tests/rls.js` afterwards only if you
+      re-enable them temporarily; otherwise rely on the recorded green run.
+
 ## 3. Seed the admin
 ```sql
 -- run as service_role / SQL editor, AFTER the owner's first WhatsApp login
