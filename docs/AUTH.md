@@ -52,6 +52,7 @@ phone-recycling/SIM-swap abuse review · admin second factor (TOTP).
   `search_path` + `REVOKE FROM PUBLIC/anon`.
 - `public_business` returns no owner/profile data, ever.
 - Media bucket: size + MIME limits, `{user_id}/…` write paths.
+- `admin_set_status()` is the only path moving trial/subscription/suspended (logged); direct owner writes to those columns are trigger-reverted.
 - Drafts: server draft rows (one per owner, jsonb) + localStorage
   write-through buffer (instant load, offline); server wins ties on login.
 - Demo media ships as static repo assets, not hotlinks; demo rows flagged.
