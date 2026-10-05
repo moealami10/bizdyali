@@ -5,7 +5,7 @@
   // No-flash session gate: hide until resolved (sync today, async in Phase 3).
   document.body.style.visibility = 'hidden';
   setTimeout(function () { document.body.style.visibility = ''; }, 1500); // failsafe
-  var user = (window.BizAuth && BizAuth.getUser()) || BizDyali.currentUser();
+  var user = (window.BizAuth && BizAuth.getUser) ? BizAuth.getUser() : null;
   if (!user) { location.replace('auth.html?next=create.html'); return; }
   document.body.style.visibility = '';
   document.getElementById('whoAmI').textContent = (user.name || user.phone || '') + ' • ';

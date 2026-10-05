@@ -12,6 +12,8 @@
   var MOCK_MAX_ATTEMPTS = 3;
   var MOCK_LOCK_MS = 60 * 1000;
   var SESSION_KEY = 'bizdyali_auth_v1';
+  var PENDING_KEY = 'bizdyali_otp_pending_v1';
+  var PENDING_MAX_MS = 10 * 60 * 1000;
   var MOCK_PROFILES_KEY = 'bizdyali_mock_profiles_v1';
 
   function storage() {
@@ -105,6 +107,26 @@
       });
     }
   }
+  function savePending(phone) {
+    var st = storage();
+    if (st) try { st.setItem(PENDING_KEY, JSON.stringify({ phone: phone, sentAt: Date.now() })); } catch (e) {}
+  }
+  function clearPending() {
+    var st = storage();
+    if (st) try { st.removeItem(PENDING_KEY); } catch (e) {}
+  }
+  function pendingValid(sentAt, now) {
+    return (now - sentAt) >= 0 && (now - sentAt) < PENDING_MAX_MS;
+  }
+  function getPending() {
+    var st = storage();
+    if (!st) return null;
+    try {
+      var p = JSON.parse(st.getItem(PENDING_KEY) || 'null');
+      if (!p || !p.phone || !pendingValid(p.sentAt, Date.now())) { clearPending(); return null; }
+      return p.phone;
+    } catch (e) { return null; }
+  }
   function signOut(next) {
     writeSession(null);
     if (typeof next === 'string' && typeof global.location !== 'undefined') {
@@ -120,11 +142,64 @@
     if (!f) return Promise.reject(new Error('no fetch'));
     return f(url, opts);
   }
+  // Pure and unit-tested: localhost, loopback, private LAN, .local mDNS.
+  // Mock auth runs here (real-phone testing). Public hosts always refuse.
+  function isPrivateHost(h) {
+    h = String(h || '').toLowerCase();
+    if (h === '' || h === 'localhost' || h === '[::1]' || h === '::1') return true;
+    if (/\.local$/.test(h)) return true;
+    if (/^127\./.test(h)) return true;
+    if (/^10\./.test(h)) return true;
+    if (/^192\.168\./.test(h)) return true;
+    var m = h.match(/^172\.(\d+)\./);
+    if (m && +m[1] >= 16 && +m[1] <= 31) return true;
+    return false;
+  }
   function isLocalHost() {
-    try {
-      var h = String((global.location && global.location.hostname) || '');
-      return h === '' || h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h === '::1';
-    } catch (e) { return false; }
+    try { return isPrivateHost(global.location && global.location.hostname); }
+    catch (e) { return false; }
+  }
+  function captchaScriptUrl() {
+    if (cfg().captchaScriptUrl) return cfg().captchaScriptUrl; // test hook
+    var p = (cfg().captchaProvider || 'turnstile').toLowerCase();
+    if (p === 'hcaptcha') return 'https://js.hcaptcha.com/1/api.js?render=explicit';
+    return 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+  }
+  function loadScriptOnce(src) {
+    return new Promise(function (resolve, reject) {
+      if (typeof document === 'undefined') { reject(new Error('no-dom')); return; }
+      if (document.querySelector('script[data-captcha]')) { resolve(); return; }
+      var el = document.createElement('script');
+      el.src = src; el.async = true; el.defer = true;
+      el.setAttribute('data-captcha', '1');
+      el.onload = function () { resolve(); };
+      el.onerror = function () { reject(new Error('load-failed')); };
+      setTimeout(function () { reject(new Error('load-timeout')); }, 15000);
+      document.head.appendChild(el);
+    });
+  }
+  // Resolves '' when CAPTCHA is off (mock, or no site key). Rejects 'captcha-load-failed'.
+  function captchaToken() {
+    if (provider() === 'mock' || !cfg().captchaSiteKey) return Promise.resolve('');
+    if (typeof document === 'undefined') return Promise.reject(new Error('captcha-load-failed'));
+    return loadScriptOnce(captchaScriptUrl()).then(function () {
+      return new Promise(function (resolve, reject) {
+        try {
+          var box = document.getElementById('captchaBox');
+          if (!box) { reject(new Error('captcha-load-failed')); return; }
+          var prov = (cfg().captchaProvider || 'turnstile').toLowerCase();
+          if (prov === 'hcaptcha' && global.hcaptcha) {
+            var hid = global.hcaptcha.render(box, { sitekey: cfg().captchaSiteKey, size: 'invisible',
+              callback: resolve, 'expired-callback': function () { reject(new Error('captcha-load-failed')); } });
+            global.hcaptcha.execute(hid);
+          } else if (global.turnstile) {
+            var tid = global.turnstile.render(box, { sitekey: cfg().captchaSiteKey,
+              callback: resolve, 'expired-callback': function () { reject(new Error('captcha-load-failed')); } });
+            global.turnstile.execute(tid);
+          } else { reject(new Error('captcha-load-failed')); }
+        } catch (e) { reject(new Error('captcha-load-failed')); }
+      });
+    }).catch(function () { return Promise.reject(new Error('captcha-load-failed')); });
   }
   function provider() { return cfg().provider || 'mock'; }
   function mockProfiles() {
@@ -155,13 +230,14 @@
         return Promise.resolve({ error: 'resend-wait', retryIn: Math.ceil((gap - (now - st.sentAt)) / 1000) });
       }
       st.sentAt = now; st.attempts = 0;
+      savePending(phone);
       return Promise.resolve({ ok: true, resendIn: cfg().otpResendSeconds || 60, debugHint: 'mock-code' });
     }
     // Supabase: POST /auth/v1/otp {phone, channel, captcha_token?}.
     var c = cfg();
     if (!c.supabaseUrl || !c.supabaseAnonKey) return Promise.resolve({ error: 'not-configured' });
     var body = { phone: phone, channel: opts.channel || c.channel || 'whatsapp' };
-    return (opts.captchaToken ? Promise.resolve(opts.captchaToken) : Promise.resolve(''))
+    return captchaToken()
       .then(function (tok) {
         if (tok) body.captcha_token = tok;
         return http(c.supabaseUrl.replace(/\/$/, '') + '/auth/v1/otp', {
@@ -172,10 +248,15 @@
       })
       .then(function (r) {
         if (r.status === 429) return { error: 'rate-limited' };
+        if (r.status === 403) return { error: 'captcha-required' };
         if (!r.ok) return { error: 'send-failed' };
+        savePending(phone);
         return { ok: true, resendIn: c.otpResendSeconds || 60 };
       })
-      .catch(function () { return { error: 'offline' }; });
+      .catch(function (e) {
+        if (e && e.message === 'captcha-load-failed') return { error: 'captcha-load-failed' };
+        return { error: 'offline' };
+      });
   }
 
   function verifyCode(phone, code) {
@@ -191,6 +272,7 @@
         if (st.attempts >= MOCK_MAX_ATTEMPTS) { st.lockedUntil = now + MOCK_LOCK_MS; return Promise.resolve({ error: 'too-many' }); }
         return Promise.resolve({ error: 'wrong', attemptsLeft: MOCK_MAX_ATTEMPTS - st.attempts });
       }
+      clearPending();
       var profiles = mockProfiles();
       var returning = !!profiles[phone];
       var user = { id: 'wa_' + phone.replace(/\D/g, ''), phone: phone, name: returning ? profiles[phone].name : '' };
@@ -206,8 +288,10 @@
     })
       .then(function (r) {
         if (r.status === 429) return { error: 'too-many' };
+        if (r.status === 403) return { error: 'captcha-required' };
         if (!r.ok) return r.json().catch(function () { return {}; }).then(function (b) {
           var msg = String((b && (b.msg || b.error)) || '');
+          if (/captcha/i.test(msg)) return { error: 'captcha-required' };
           if (/expired/i.test(msg)) return { error: 'expired' };
           return { error: 'wrong' };
         });
@@ -216,6 +300,7 @@
       .then(function (sess) {
         if (sess && sess.error) return sess;
         if (!sess || !sess.access_token || !sess.user) return { error: 'wrong' };
+        clearPending();
         var user = { id: sess.user.id, phone: phone, name: (sess.user.user_metadata && sess.user.user_metadata.name) || '' };
         writeSession({ user: user, expiresAt: Date.now() + (sess.expires_in || 3600) * 1000,
           accessToken: sess.access_token, refreshToken: sess.refresh_token || null, provider: 'supabase' });
@@ -299,8 +384,22 @@
     return refreshSession().then(function (ns) { return ns ? ns.accessToken : null; });
   }
 
+  // Phase 2: no migration (no real users yet). Old keys die on sight, on every load.
+  function purgeLegacy() {
+    var st = storage();
+    if (!st) return 0;
+    var keys = ['bizdyali_users_v1', 'bizdyali_session_v1', 'bizdyali_admins_v1', 'bizdyali_admin_session_v1'];
+    var n = 0;
+    keys.forEach(function (k) {
+      try { if (st.getItem(k) !== null) { st.removeItem(k); n++; } } catch (e) {}
+    });
+    return n;
+  }
+  try { purgeLegacy(); } catch (e) {}
   global.BizAuth = {
     normalizeDigits: normalizeDigits, parsePhone: parsePhone, validateNext: validateNext,
+    isPrivateHost: isPrivateHost, getPending: getPending, clearPending: clearPending,
+    pendingValid: pendingValid, purgeLegacy: purgeLegacy, captchaToken: captchaToken,
     requestCode: requestCode, verifyCode: verifyCode, mockSetName: mockSetName,
     getUser: getUser, signOut: signOut, onChange: onChange,
     accessToken: accessToken, refreshSession: refreshSession,

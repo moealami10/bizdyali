@@ -4,13 +4,13 @@
   BizDyali.seedDemo();
   document.body.style.visibility = 'hidden';
   setTimeout(function () { document.body.style.visibility = ''; }, 1500); // failsafe
-  var user = (window.BizAuth && BizAuth.getUser()) || BizDyali.currentUser();
+  var user = (window.BizAuth && BizAuth.getUser) ? BizAuth.getUser() : null;
   if (!user) { location.replace('auth.html?next=dashboard.html'); return; }
   document.body.style.visibility = '';
   document.getElementById('whoAmI').textContent = (user.name || user.phone || '') + ' • ';
   document.getElementById('logoutBtn').addEventListener('click', function () {
     if (window.BizAuth) BizAuth.signOut();
-    BizDyali.logout(); location.replace('index.html');
+    location.replace('index.html');
   });
 
   var $ = function (id) { return document.getElementById(id); };

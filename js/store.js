@@ -1,26 +1,22 @@
 /* BizDyali local data layer (prototype).
    No backend yet: each business has independent data stored in localStorage.
-   Keys: users, businesses, session, per-user wizard draft, activity log, admins.
+   Keys: businesses, per-user wizard draft, activity log. Sessions live in
+   js/auth.js (WhatsApp OTP, mock on localhost). No passwords, no emails.
    Payments are NOT implemented — subscription is a placeholder.
-   SECURITY NOTE: this MVP runs entirely in the browser. Admin functions verify
-   the admin session on every call, but real authorization enforcement requires
-   a backend API. Do not treat client-side checks as sufficient in production. */
+   SECURITY NOTE: this MVP runs entirely in the browser. Real authorization
+   enforcement requires the Phase 3 backend. Do not treat client-side checks
+   as sufficient in production. */
 (function (global) {
   'use strict';
 
-  var USERS_KEY = 'bizdyali_users_v1';
   var BIZ_KEY = 'bizdyali_businesses_v1';
-  var SESSION_KEY = 'bizdyali_session_v1';
   var LOG_KEY = 'bizdyali_activity_v1';
-  var ADMINS_KEY = 'bizdyali_admins_v1';
-  var ADMIN_SESSION_KEY = 'bizdyali_admin_session_v1';
   var TRIAL_DAYS = 14;
   var SUBSCRIPTION_PRICE = 100; // MAD/month (display only, no payments yet)
-  // Platform owner: the ONLY email ever allowed to hold admin access.
-  // This is a client-side mitigation. Because browsers don't share localStorage,
-  // a fresh browser cannot know an admin already exists elsewhere — so creation
-  // itself is restricted to this address. True enforcement still needs a backend.
-  var BOOTSTRAP_ADMIN_EMAIL = 'moealami10@gmail.com';
+  // Platform owner phone (E.164): the ONLY number granted local admin access.
+  // Demo gate only — Phase 3 replaces it with the server-side admins table.
+  // Set it in js/config.js (ownerPhone).
+  function ownerPhone() { return (global.BizConfig && global.BizConfig.ownerPhone) || ''; }
 
   function read(key, fallback) {
     try {
@@ -33,13 +29,6 @@
   }
   function uid(prefix) {
     return (prefix || 'id') + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-  }
-  // NOT secure — demo hashing only. Replace with server-side auth in production.
-  function hashPw(pw) {
-    var h = 5381;
-    var s = 'bizdyali$' + String(pw);
-    for (var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
-    return 'h' + h.toString(36);
   }
   function slugify(text) {
     return String(text || '')
@@ -106,7 +95,7 @@
       subscription: 'none', // 'none' | 'active' (paid placeholder, set by admin)
       suspended: false, // admin can disable the public page without deleting data
       expiryLogged: false,
-      ownerName: '', ownerEmail: '',
+      ownerName: '', ownerPhone: '',
       trialStart: null, trialEnd: null,
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
     };
@@ -140,16 +129,13 @@
     return false;
   }
 
-  // ---- Admin auth (separate credential + session store from business users) ----
-  // Sessions are NEVER persisted: the admin id lives only in page memory, so
-  // every fresh page load asks for email + password again. (A past prototype
-  // version stored the session in localStorage; that key is wiped on load.)
-  var memoryAdminId = null;
-  try { localStorage.removeItem(ADMIN_SESSION_KEY); } catch (e) {}
+  // ---- Admin gate: the signed-in WhatsApp number must match the owner phone.
+  // Demo gate only — Phase 3 checks the server-side admins table instead.
   function currentAdmin() {
-    if (!memoryAdminId) return null;
-    var a = read(ADMINS_KEY, []).find(function (x) { return x.id === memoryAdminId; });
-    return a ? { id: a.id, email: a.email } : null;
+    var op = ownerPhone();
+    if (!op || !global.BizAuth || !BizAuth.getUser) return null;
+    var u = BizAuth.getUser();
+    return (u && u.phone === op) ? { phone: u.phone, name: u.name || '' } : null;
   }
   function requireAdmin() { return currentAdmin(); } // every admin* fn calls this first
 
@@ -157,36 +143,6 @@
     TRIAL_DAYS: TRIAL_DAYS,
     SUBSCRIPTION_PRICE: SUBSCRIPTION_PRICE,
 
-    // ---- Auth ----
-    signup: function (name, email, password) {
-      name = String(name || '').trim();
-      email = String(email || '').trim().toLowerCase();
-      if (name.length < 2) return { error: 'كتب السمية ديالك.' };
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: 'كتب شي إيميل صحيح.' };
-      if (String(password || '').length < 6) return { error: 'الكود السري خاصو 6 دالحروف على الأقل.' };
-      var users = read(USERS_KEY, []);
-      if (users.some(function (u) { return u.email === email; })) return { error: 'هاد الإيميل عندو كونت. دخل نيشان.' };
-      var user = { id: uid('u'), name: name, email: email, pw: hashPw(password), createdAt: new Date().toISOString() };
-      users.push(user); write(USERS_KEY, users);
-      write(SESSION_KEY, { userId: user.id });
-      logEvent('account_created', { actor: 'owner', actorName: name, ownerId: user.id, details: email });
-      return { user: { id: user.id, name: user.name, email: user.email } };
-    },
-    login: function (email, password) {
-      email = String(email || '').trim().toLowerCase();
-      var users = read(USERS_KEY, []);
-      var user = users.find(function (u) { return u.email === email; });
-      if (!user || user.pw !== hashPw(password)) return { error: 'الإيميل ولا الكود السري غلط.' };
-      write(SESSION_KEY, { userId: user.id });
-      return { user: { id: user.id, name: user.name, email: user.email } };
-    },
-    logout: function () { localStorage.removeItem(SESSION_KEY); },
-    currentUser: function () {
-      var s = read(SESSION_KEY, null);
-      if (!s) return null;
-      var user = read(USERS_KEY, []).find(function (u) { return u.id === s.userId; });
-      return user ? { id: user.id, name: user.name, email: user.email } : null;
-    },
 
     // ---- Businesses (independent per business, scoped per owner) ----
     blankBusiness: blankBusiness,
@@ -225,8 +181,10 @@
       if (biz.subscription !== 'active') biz.subscription = 'none';
       biz.suspended = false;
       biz.expiryLogged = false;
-      var owner = read(USERS_KEY, []).find(function (u) { return u.id === biz.ownerId; });
-      if (owner) { biz.ownerName = owner.name; biz.ownerEmail = owner.email; }
+      try {
+        var sess = (global.BizAuth && BizAuth.getUser) ? BizAuth.getUser() : null;
+        if (sess && sess.id === biz.ownerId) { biz.ownerName = sess.name || ''; biz.ownerPhone = sess.phone || ''; }
+      } catch (e) {}
       biz.trialStart = now.toISOString();
       biz.trialEnd = new Date(now.getTime() + TRIAL_DAYS * 86400000).toISOString();
       var res = api.saveBusiness(biz);
@@ -252,30 +210,9 @@
     publicUrl: publicUrl,
     fmtDate: fmtDate,
 
-    // ---- Admin (every function re-verifies the admin session) ----
-    needsAdminSetup: function () { return read(ADMINS_KEY, []).length === 0; },
-    setupAdmin: function (email, password) {
-      if (!api.needsAdminSetup()) return { error: 'An administrator already exists. Please sign in.' };
-      email = String(email || '').trim().toLowerCase();
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: 'كتب شي إيميل صحيح.' };
-      if (email !== BOOTSTRAP_ADMIN_EMAIL) return { error: 'This email is not authorized as an administrator.' };
-      if (String(password || '').length < 8) return { error: 'Admin password must be at least 8 characters.' };
-      var admin = { id: uid('adm'), email: email, pw: hashPw(password), createdAt: new Date().toISOString() };
-      write(ADMINS_KEY, [admin]);
-      memoryAdminId = admin.id; // memory only — never persisted
-      logEvent('admin_action', { actor: 'admin', actorName: email, details: 'Admin account created' });
-      return { admin: { id: admin.id, email: admin.email } };
-    },
-    adminLogin: function (email, password) {
-      email = String(email || '').trim().toLowerCase();
-      if (email !== BOOTSTRAP_ADMIN_EMAIL) return { error: 'Incorrect admin email or password.' };
-      var admin = read(ADMINS_KEY, []).find(function (a) { return a.email === email; });
-      if (!admin || admin.pw !== hashPw(password)) return { error: 'Incorrect admin email or password.' };
-      memoryAdminId = admin.id; // memory only — never persisted
-      return { admin: { id: admin.id, email: admin.email } };
-    },
-    adminLogout: function () { memoryAdminId = null; try { localStorage.removeItem(ADMIN_SESSION_KEY); } catch (e) {} },
+    // ---- Admin (every function re-verifies the owner-phone gate) ----
     currentAdmin: currentAdmin,
+    adminLogout: function () { if (global.BizAuth) BizAuth.signOut(); },
     adminAllBusinesses: function () {
       if (!requireAdmin()) return { error: 'Not authorized. Admin sign-in required.' };
       return { businesses: allBusinesses().slice().sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); }) };
@@ -318,8 +255,8 @@
       });
       var res = api.saveBusiness(biz);
       if (!res.error) {
-        logEvent('info_changed', { actor: 'admin', actorName: admin.email, businessId: biz.id, businessName: biz.name, ownerId: biz.ownerId, details: note || 'Edited by admin' });
-        logEvent('admin_action', { actor: 'admin', actorName: admin.email, businessId: biz.id, businessName: biz.name, ownerId: biz.ownerId, details: 'Edited business information' + (note ? ': ' + note : '') });
+        logEvent('info_changed', { actor: 'admin', actorName: admin.phone, businessId: biz.id, businessName: biz.name, ownerId: biz.ownerId, details: note || 'Edited by admin' });
+        logEvent('admin_action', { actor: 'admin', actorName: admin.phone, businessId: biz.id, businessName: biz.name, ownerId: biz.ownerId, details: 'Edited business information' + (note ? ': ' + note : '') });
       }
       return res.error ? res : { business: biz };
     },
@@ -336,7 +273,7 @@
       biz.status = 'trial';
       biz.expiryLogged = false;
       var res = api.saveBusiness(biz);
-      if (!res.error) logEvent('admin_action', { actor: 'admin', actorName: admin.email, businessId: biz.id, businessName: biz.name, ownerId: biz.ownerId, details: 'Extended trial by ' + extraDays + ' days (now ends ' + fmtDate(biz.trialEnd) + ')' });
+      if (!res.error) logEvent('admin_action', { actor: 'admin', actorName: admin.phone, businessId: biz.id, businessName: biz.name, ownerId: biz.ownerId, details: 'Extended trial by ' + extraDays + ' days (now ends ' + fmtDate(biz.trialEnd) + ')' });
       return res.error ? res : { business: biz };
     },
     adminSetSubscription: function (id, active) {
@@ -347,7 +284,7 @@
       biz.subscription = active ? 'active' : 'none';
       biz.status = active ? 'subscribed' : (Date.now() > new Date(biz.trialEnd).getTime() ? 'expired' : 'trial');
       var res = api.saveBusiness(biz);
-      if (!res.error) logEvent('admin_action', { actor: 'admin', actorName: admin.email, businessId: biz.id, businessName: biz.name, ownerId: biz.ownerId, details: active ? 'Marked as PAID subscriber (100 MAD/month placeholder, no payment processed)' : 'Subscription removed (back to trial/expired flow)' });
+      if (!res.error) logEvent('admin_action', { actor: 'admin', actorName: admin.phone, businessId: biz.id, businessName: biz.name, ownerId: biz.ownerId, details: active ? 'Marked as PAID subscriber (100 MAD/month placeholder, no payment processed)' : 'Subscription removed (back to trial/expired flow)' });
       return res.error ? res : { business: biz };
     },
     adminSetSuspended: function (id, suspended) {
@@ -357,7 +294,7 @@
       if (!biz) return { error: 'Business not found.' };
       biz.suspended = !!suspended;
       var res = api.saveBusiness(biz);
-      if (!res.error) logEvent('admin_action', { actor: 'admin', actorName: admin.email, businessId: biz.id, businessName: biz.name, ownerId: biz.ownerId, details: suspended ? 'Disabled public page (data kept)' : 'Re-enabled public page' });
+      if (!res.error) logEvent('admin_action', { actor: 'admin', actorName: admin.phone, businessId: biz.id, businessName: biz.name, ownerId: biz.ownerId, details: suspended ? 'Disabled public page (data kept)' : 'Re-enabled public page' });
       return res.error ? res : { business: biz };
     },
     adminUnpublish: function (id) {
@@ -367,7 +304,7 @@
       if (!biz) return { error: 'Business not found.' };
       biz.published = false; biz.status = 'draft';
       var res = api.saveBusiness(biz);
-      if (!res.error) logEvent('admin_action', { actor: 'admin', actorName: admin.email, businessId: biz.id, businessName: biz.name, ownerId: biz.ownerId, details: 'Unpublished page (moved back to draft)' });
+      if (!res.error) logEvent('admin_action', { actor: 'admin', actorName: admin.phone, businessId: biz.id, businessName: biz.name, ownerId: biz.ownerId, details: 'Unpublished page (moved back to draft)' });
       return res.error ? res : { business: biz };
     },
     adminDeleteBusiness: function (id) {
@@ -376,7 +313,7 @@
       var biz = allBusinesses().find(function (b) { return b.id === id; });
       if (!biz) return { error: 'Business not found.' };
       saveAllBusinesses(allBusinesses().filter(function (b) { return b.id !== id; }));
-      logEvent('admin_action', { actor: 'admin', actorName: admin.email, businessId: id, businessName: biz.name, ownerId: biz.ownerId, details: 'PERMANENTLY DELETED business and all its data' });
+      logEvent('admin_action', { actor: 'admin', actorName: admin.phone, businessId: id, businessName: biz.name, ownerId: biz.ownerId, details: 'PERMANENTLY DELETED business and all its data' });
       return { deleted: true };
     },
     logEvent: function (type, opts) { return logEvent(type, opts); } // owner flows log their own actions
@@ -667,7 +604,7 @@
     function demoBiz(o) {
       var b = {
         id: o.id, ownerId: 'demo', demo: true,
-        ownerName: o.ownerName, ownerEmail: o.ownerEmail,
+        ownerName: o.ownerName, ownerPhone: o.ownerPhone,
         name: o.name, category: o.category, description: o.desc,
         phone: '+212 6 61 00 00 00', whatsapp: '+212661000000',
         address: o.address, city: o.city, hours: 'Mon – Sat: 8:00 – 23:00',
@@ -687,35 +624,35 @@
       { id: 'di3', kind: 'service', name: 'Birthday Table Setup', description: 'We decorate a table for your celebration.', price: 150, photos: CAFE_PHOTOS.birthday.slice(), video: null, order: 3 }
     ];
     var seeds = [
-      demoBiz({ id: 'biz_demo_nassim', ownerName: 'Salma Bennani', ownerEmail: 'salma@example.com',
+      demoBiz({ id: 'biz_demo_nassim', ownerName: 'Salma Bennani', ownerPhone: '+212661000000',
         name: 'Café Nassim', category: 'Café', city: 'Casablanca', address: '12 Rue Yacoub El Mansour, Maârif',
         desc: 'A cozy neighbourhood café in Maârif. Fresh msemen every morning, great espresso, sunny terrace.',
         cover: CAFE_COVER,
         items: items1, slug: 'cafe-nassim', status: 'trial', published: true,
         trialStart: new Date(now - 1 * D).toISOString(), trialEnd: new Date(now + 13 * D).toISOString(),
         createdAt: new Date(now - 1 * D).toISOString() }),
-      demoBiz({ id: 'biz_demo_salon', ownerName: 'Yassine El Fassi', ownerEmail: 'yassine@example.com',
+      demoBiz({ id: 'biz_demo_salon', ownerName: 'Yassine El Fassi', ownerPhone: '+212662000000',
         name: 'Salon Narjis', category: 'Salon / Barber', city: 'Rabat', address: '5 Av. Annakhil, Agdal',
         desc: 'Modern salon for women and men. Bridal packages available on reservation.',
         items: [{ id: 'ds1', kind: 'service', name: 'Haircut & Brushing', description: 'Cut, wash and styling.', price: 120, photos: [], video: null, order: 0 }],
         slug: 'salon-narjis', status: 'trial', published: true,
         trialStart: new Date(now - 12 * D).toISOString(), trialEnd: new Date(now + 2 * D).toISOString(),
         createdAt: new Date(now - 12 * D).toISOString() }),
-      demoBiz({ id: 'biz_demo_old', ownerName: 'Karim Tazi', ownerEmail: 'karim@example.com',
+      demoBiz({ id: 'biz_demo_old', ownerName: 'Karim Tazi', ownerPhone: '+212663000000',
         name: 'Tazi Electronics', category: 'Electronics / Repair', city: 'Fès', address: '8 Rue Talaa Kebira',
         desc: 'Phone and laptop repair with 3-month warranty on all fixes.',
         items: [{ id: 'do1', kind: 'service', name: 'Screen Replacement', description: 'Original-quality screens.', price: 350, photos: [], video: null, order: 0 }],
         slug: 'tazi-electronics', status: 'expired', published: true,
         trialStart: new Date(now - 20 * D).toISOString(), trialEnd: new Date(now - 6 * D).toISOString(),
         createdAt: new Date(now - 20 * D).toISOString() }),
-      demoBiz({ id: 'biz_demo_paid', ownerName: 'Salma Bennani', ownerEmail: 'salma@example.com',
+      demoBiz({ id: 'biz_demo_paid', ownerName: 'Salma Bennani', ownerPhone: '+212661000000',
         name: 'Nassim Traiteur', category: 'Services', city: 'Casablanca', address: '12 Rue Yacoub El Mansour',
         desc: 'Catering for weddings and corporate events across Casablanca.',
         items: [{ id: 'dp1', kind: 'service', name: 'Wedding Menu (per guest)', description: 'Full traditional menu.', price: 220, photos: [], video: null, order: 0 }],
         slug: 'nassim-traiteur', status: 'subscribed', published: true, subscription: 'active',
         trialStart: new Date(now - 40 * D).toISOString(), trialEnd: new Date(now - 26 * D).toISOString(),
         createdAt: new Date(now - 40 * D).toISOString() }),
-      demoBiz({ id: 'biz_demo_draft', ownerName: 'Mehdi Alaoui', ownerEmail: 'mehdi@example.com',
+      demoBiz({ id: 'biz_demo_draft', ownerName: 'Mehdi Alaoui', ownerPhone: '+212664000000',
         name: 'Alaoui Grocery', category: 'Grocery / Hanout', city: 'Marrakech', address: '3 Derb El Ferrane',
         desc: 'Neighbourhood grocery — draft, not published yet.',
         items: [], slug: '', status: 'draft', published: false, trialStart: null, trialEnd: null,
@@ -726,11 +663,11 @@
     // Seed log history so the Activity Log view has content on first run.
     if (allLogs().length === 0) {
       var L = [
-        ['account_created', 'owner', 'Salma Bennani', 'biz_demo_nassim', 'Café Nassim', 'demo', 'salma@example.com', 1],
+        ['account_created', 'owner', 'Salma Bennani', 'biz_demo_nassim', 'Café Nassim', 'demo', '+212661000000', 1],
         ['business_created', 'owner', 'Salma Bennani', 'biz_demo_nassim', 'Café Nassim', 'demo', '0 products, 0 services', 1],
         ['trial_started', 'system', '', 'biz_demo_nassim', 'Café Nassim', 'demo', '', 1],
         ['product_added', 'owner', 'Salma Bennani', 'biz_demo_nassim', 'Café Nassim', 'demo', 'Espresso — 15 MAD', 1],
-        ['account_created', 'owner', 'Karim Tazi', 'biz_demo_old', 'Tazi Electronics', 'demo', 'karim@example.com', 20],
+        ['account_created', 'owner', 'Karim Tazi', 'biz_demo_old', 'Tazi Electronics', 'demo', '+212663000000', 20],
         ['trial_expired', 'system', '', 'biz_demo_old', 'Tazi Electronics', 'demo', '', 6]
       ];
       L.forEach(function (e) {

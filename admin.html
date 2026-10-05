@@ -49,25 +49,10 @@
     <!-- GATE -->
     <section id="gateView" class="app-narrow" style="margin:0 auto" hidden>
       <div class="card">
-        <div id="setupBox" hidden>
-          <h1 class="page-title" style="font-size:1.4rem">Set up the admin account</h1>
-          <p class="page-sub">No administrator exists in this browser yet. Only the authorized platform-owner email can create the admin account.</p>
-          <div id="setupErr" class="form-err" hidden></div>
-          <form id="setupForm" class="form-grid" autocomplete="off">
-            <label class="field">Admin email<input type="email" id="setupEmail" required autocomplete="off" /></label>
-            <label class="field">Admin password (min 8 characters)<input type="password" id="setupPw" required autocomplete="new-password" /></label>
-            <button class="btn btn-primary btn-lg" type="submit">Create admin account</button>
-          </form>
-        </div>
         <div id="loginBox" hidden>
           <h1 class="page-title" style="font-size:1.4rem">Admin sign in</h1>
-          <p class="page-sub">Restricted area. Business owners: please use the <a href="auth.html">regular sign in</a>.</p>
-          <div id="loginErr" class="form-err" hidden></div>
-          <form id="loginForm" class="form-grid" autocomplete="off">
-            <label class="field">Admin email<input type="email" id="adminEmail" required autocomplete="off" /></label>
-            <label class="field">Password<input type="password" id="adminPw" required autocomplete="new-password" /></label>
-            <button class="btn btn-primary btn-lg" type="submit">Sign in to admin →</button>
-          </form>
+          <p class="page-sub">Restricted area. Admins sign in with the same WhatsApp flow as owners.</p>
+          <div class="btn-row"><a class="btn btn-primary btn-lg" href="auth.html?next=admin.html">Sign in with WhatsApp →</a></div>
         </div>
       </div>
     </section>
@@ -224,6 +209,8 @@
     </section>
   </main>
 
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
   <script src="js/store.js"></script>
   <script src="js/admin.js"></script>
 </body>
