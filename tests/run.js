@@ -32,14 +32,38 @@ const nexts = [
 ];
 nexts.forEach(([input, want]) => t('next ' + JSON.stringify(input), A.validateNext(input) === want, A.validateNext(input)));
 
+// Private-host gate: LAN + .local allowed, public refused.
+const hosts = [
+  ['localhost', true], ['LOCALHOST', true], ['127.0.0.1', true], ['127.0.1.2', true],
+  ['10.0.0.5', true], ['172.16.0.1', true], ['172.31.9.9', true], ['192.168.1.10', true],
+  ['phone.local', true], ['', true],
+  ['172.15.0.1', false], ['172.32.0.1', false], ['8.8.8.8', false],
+  ['example.com', false], ['evil.local.com', false]
+];
+hosts.forEach(([h, want]) => t('private-host ' + JSON.stringify(h), A.isPrivateHost(h) === want, A.isPrivateHost(h)));
+
+// Pending code-step window (~10 min).
+const nowMs = Date.now();
+t('pending fresh', A.pendingValid(nowMs - 60000, nowMs) === true);
+t('pending stale', A.pendingValid(nowMs - 11 * 60000, nowMs) === false);
+t('pending future', A.pendingValid(nowMs + 60000, nowMs) === false);
+
+// Deterministic memory storage (overrides Node's experimental file-backed one).
+const _mem = {};
+global.localStorage = { getItem: k => (_mem[k] === undefined ? null : _mem[k]), setItem: (k, v) => { _mem[k] = String(v); }, removeItem: k => { delete _mem[k]; } };
+global.window = { addEventListener: () => {} };
+global.localStorage.setItem('bizdyali_users_v1', '[]');
+global.localStorage.setItem('bizdyali_session_v1', '{}');
+global.localStorage.setItem('bizdyali_admins_v1', '[]');
+global.localStorage.setItem('bizdyali_admin_session_v1', '{}');
+t('purge removes 4 legacy keys', A.purgeLegacy() === 4, A.purgeLegacy());
+t('legacy keys gone', ['bizdyali_users_v1', 'bizdyali_session_v1', 'bizdyali_admins_v1', 'bizdyali_admin_session_v1'].every(k => global.localStorage.getItem(k) === null));
+
 // Refresh single-flight: N concurrent callers -> one fetch.
 (async () => {
+  const mem = _mem;
   let calls = 0;
   A._setFetch(() => { calls++; return new Promise(res => setTimeout(() => res({ json: () => Promise.resolve({}) }), 30)); });
-  // Seed an (expired-ish) supabase session via localStorage shim.
-  const store = {};
-  global.localStorage = { getItem: k => store[k] || null, setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
-  global.window = { addEventListener: () => {} };
   const results = await Promise.all([A.refreshSession(), A.refreshSession(), A.refreshSession()]);
   t('single-flight one fetch', calls <= 1, calls);
   // Cross-tab lock: second acquire while held fails.
@@ -48,6 +72,37 @@ nexts.forEach(([input, want]) => t('next ' + JSON.stringify(input), A.validateNe
   A._lock.release();
   t('lock re-acquires after release', A._lock.acquire() === true);
   A._lock.release();
+  // Supabase provider behind stubbed fetch.
+  global.BizConfig = { provider: 'supabase', supabaseUrl: 'https://x.supabase.co',
+    supabaseAnonKey: 'k', otpResendSeconds: 60, verifyType: 'sms', channel: 'whatsapp' };
+  // rate-limit + wrong/expired/captcha mapping
+  A._setFetch((url, body) => {
+    if (url.includes('/otp')) return Promise.resolve({ status: 429, ok: false });
+    return Promise.resolve({ status: 400, ok: false, json: () => Promise.resolve({ msg: 'Invalid OTP' }) });
+  });
+  let r = await A.requestCode('+33612345678', {});
+  t('otp 429 -> rate-limited', r.error === 'rate-limited', r);
+  r = await A.verifyCode('+33612345678', '000000');
+  t('verify 400 -> wrong', r.error === 'wrong', r);
+  A._setFetch((url) => Promise.resolve({ status: 400, ok: false, json: () => Promise.resolve({ msg: 'Token expired' }) }));
+  r = await A.verifyCode('+33612345678', '000000');
+  t('verify expired-msg -> expired', r.error === 'expired', r);
+  A._setFetch((url) => Promise.resolve({ status: 403, ok: false, json: () => Promise.resolve({}) }));
+  r = await A.verifyCode('+33612345678', '000000');
+  t('verify 403 -> captcha-required', r.error === 'captcha-required', r);
+  // single-flight refresh with seeded session
+  mem['bizdyali_auth_v1'] = JSON.stringify({ user: { id: 'u1', phone: '+33612345678', name: '' },
+    expiresAt: Date.now() + 60000, accessToken: 'old', refreshToken: 'rt', provider: 'supabase' });
+  let fetchCalls = 0;
+  A._setFetch((url, opts) => { fetchCalls++;
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ access_token: 'new', refresh_token: 'rt2', expires_in: 3600, user: { id: 'u1' } }) }); });
+  await Promise.all([A.refreshSession(), A.refreshSession(), A.refreshSession()]);
+  t('supabase single-flight one fetch', fetchCalls === 1, fetchCalls);
+  t('session rotated', JSON.parse(mem['bizdyali_auth_v1']).accessToken === 'new');
+  // expired refresh token -> signed out
+  A._setFetch((url) => Promise.resolve({ ok: true, json: () => Promise.resolve({}) }));
+  await A.refreshSession();
+  t('dead refresh clears session', A.getUser() === null);
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('FATAL', e.message); process.exit(1); });

@@ -25,6 +25,7 @@
 
     <div class="card" style="margin-top:1rem">
       <div id="authErr" class="form-err" role="alert" aria-live="assertive" hidden></div>
+      <div id="captchaBox" aria-hidden="true"></div>
 
       <!-- STEP 1: number -->
       <form id="phoneForm" class="form-grid">
@@ -42,6 +43,7 @@
           <input type="text" id="authCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="······" dir="ltr" required />
         </label>
         <button type="submit" class="btn btn-primary btn-lg" id="verifyBtn">دخل ←</button>
+        <p class="fine" style="margin:0"><button class="link-btn" id="pasteBtn" type="button">لصّق الكود</button></p>
         <p class="fine" style="margin:0"><button class="link-btn" id="resendBtn" type="button">عاود سيفط الكود</button><span id="countWrap" hidden> — عاود من بعد <span id="countNum">60</span> ثانية</span></p>
       </form>
 
@@ -82,6 +84,16 @@
     } catch (e) {}
     var phone = '';
     var timer = null;
+    // Pending code step survives reload/app-switch (~10 min, no auto-resend: no cost on load).
+    (function restorePending() {
+      var pend = null;
+      try { pend = BizAuth.getPending(); } catch (e) {}
+      if (pend && !BizAuth.getUser()) {
+        phone = pend;
+        document.getElementById('codePhone').textContent = phone;
+        showStep(2);
+      }
+    })();
 
     var ERRORS = {
       'empty': 'كتب النمرة.',
@@ -96,7 +108,10 @@
       'offline': 'ما كايناش الكونكسيون. شوف الريزو وعاود.',
       'send-failed': 'ما تسيفطش الكود. عاود من بعد شوية.',
       'not-configured': 'الدخول ما زال ما تضبطش. تواصل مع BizDyali.',
-      'mock-localhost-only': 'نسخة التجربة خدامة غير محليا.'
+      'mock-localhost-only': 'نسخة التجربة خدامة غير محليا.',
+      'captcha-load-failed': 'التحقق ما تحمّلش. شوف الكونكسيون وعاود.',
+      'captcha-required': 'خاصك تدوز التحقق قبل ما تكمّل.',
+      'paste-failed': 'ما قدرناش نقراو الحافظة. لصّق الكود بيدك.'
     };
     function showErr(code, extra) {
       var msg = ERRORS[code] || 'كاين شي مشكل. عاود من بعد شوية.';
@@ -143,8 +158,18 @@
       });
     });
 
+    document.getElementById('pasteBtn').addEventListener('click', function () {
+      hideErr();
+      if (!navigator.clipboard || !navigator.clipboard.readText) { showErr('paste-failed'); codeInput.focus(); return; }
+      navigator.clipboard.readText().then(function (txt) {
+        var digits = String(txt || '').replace(/\D/g, '').slice(-6);
+        if (digits.length === 6) { codeInput.value = digits; codeForm.requestSubmit(); }
+        else { showErr('paste-failed'); codeInput.focus(); }
+      }, function () { showErr('paste-failed'); codeInput.focus(); });
+    });
     document.getElementById('changeBtn').addEventListener('click', function () {
       if (timer) { clearInterval(timer); timer = null; }
+      try { BizAuth.clearPending(); } catch (e) {}
       showStep(1);
       phoneInput.focus();
     });

@@ -14,6 +14,7 @@
     smsFallback: false,
     captchaSiteKey: '',
     otpResendSeconds: 60,
-    sessionTtlSec: 30 * 24 * 3600
+    sessionTtlSec: 30 * 24 * 3600,
+    ownerPhone: ''
   };
 })(window);

@@ -26,29 +26,10 @@
     $('gateView').hidden = !!admin;
     $('adminApp').hidden = !admin;
     $('adminLogout').hidden = !admin;
-    $('adminWho').textContent = admin ? admin.email + ' • ' : '';
-    if (!admin) {
-      var needSetup = BizDyali.needsAdminSetup();
-      $('setupBox').hidden = !needSetup;
-      $('loginBox').hidden = needSetup;
-    } else { loadAll(); }
+    $('adminWho').textContent = admin ? admin.phone + ' • ' : '';
+    if (!admin) { $('loginBox').hidden = false; } else { loadAll(); }
   }
-  $('setupForm').addEventListener('submit', function (e) {
-    e.preventDefault();
-    var r = BizDyali.setupAdmin($('setupEmail').value, $('setupPw').value);
-    if (r.error) { var b = $('setupErr'); b.textContent = r.error; b.hidden = false; return; }
-    $('setupEmail').value = '';
-    $('setupPw').value = '';
-    refreshGate();
-  });
-  $('loginForm').addEventListener('submit', function (e) {
-    e.preventDefault();
-    var r = BizDyali.adminLogin($('adminEmail').value, $('adminPw').value);
-    if (r.error) { var b = $('loginErr'); b.textContent = r.error; b.hidden = false; return; }
-    $('adminEmail').value = '';
-    $('adminPw').value = '';
-    refreshGate();
-  });
+
   $('adminLogout').addEventListener('click', function () { BizDyali.adminLogout(); selectedId = null; refreshGate(); });
 
   // ---------- Tabs ----------
@@ -100,11 +81,11 @@
     return allBiz.filter(function (b) {
       if (sf && BizDyali.trialState(b).status !== sf) return false;
       if (!q) return true;
-      return [b.name, b.ownerName, b.ownerEmail, b.city, b.category, b.slug].join(' ').toLowerCase().indexOf(q) >= 0;
+      return [b.name, b.ownerName, b.ownerPhone, b.city, b.category, b.slug].join(' ').toLowerCase().indexOf(q) >= 0;
     });
   }
   function ownerLabel(b) {
-    if (b.ownerName) return esc(b.ownerName) + '<br /><small>' + esc(b.ownerEmail || '') + '</small>';
+    if (b.ownerName) return esc(b.ownerName) + '<br /><small dir="ltr">' + esc(b.ownerPhone || '') + '</small>';
     return '<small>' + esc(b.ownerId || '—') + '</small>';
   }
   function renderTable() {
@@ -141,7 +122,7 @@
     var st = BizDyali.trialState(b).status;
     $('d_info').innerHTML =
       kvRow('Status', statusPill(st) + (b.suspended ? ' ' + statusPill('suspended') : '')) +
-      kvRow('Owner', esc(b.ownerName || '—') + ' (' + esc(b.ownerEmail || b.ownerId) + ')') +
+      kvRow('Owner', esc(b.ownerName || '—') + ' (' + esc(b.ownerPhone || b.ownerId) + ')') +
       kvRow('Category', esc(b.category || '—')) +
       kvRow('Description', esc(b.description || '—')) +
       kvRow('Phone', esc(b.phone || '—')) +
