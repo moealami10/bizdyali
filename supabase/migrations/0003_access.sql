@@ -14,7 +14,7 @@ alter table public.activity_log enable row level security;
 
 -- Defined here (not 0004) because policies below already reference it.
 create or replace function public.is_admin()
-returns boolean language sql stable security definer set search_path to public as
+returns boolean language sql stable security definer set search_path to public, pg_temp as
   $$ select exists (select 1 from public.admins where user_id = auth.uid()) $$;
 revoke all on function public.is_admin() from public, anon, authenticated;
 
@@ -60,7 +60,7 @@ create policy businesses_admin_all on public.businesses
 -- Belt-and-braces trigger: owner_id is forced, server columns are reset,
 -- even if a grant below is ever widened by mistake.
 create or replace function public.force_business_owner()
-returns trigger language plpgsql set search_path to public as $$
+returns trigger language plpgsql set search_path to public, pg_temp as $$
 begin
   -- Service role (owner-run seeds/tests) bypasses forcing entirely.
   if current_setting('role', true) = 'service_role' then return new; end if;

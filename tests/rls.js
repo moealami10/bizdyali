@@ -167,8 +167,46 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   r = await rest('admin', 'profiles', '?select=phone');
   t('admin: reads profiles', Array.isArray(r.json) && r.json.length >= 3, (r.json || []).length);
 
+  // Constraint matrix: one positive, one negative per rule (A inserts, A reads back).
+  const GOOD_PHOTO = 'https://xyz.supabase.co/storage/v1/object/public/business-media/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222.jpg';
+  const baseBiz = (slug, patch) => Object.assign({ owner_id: 'A', slug, name: 'Constraint Biz', category: 'Café',
+    description: '0123456789abcdef', phone: '+1000', whatsapp: '+1000', city: 'X', hours: 'h',
+    logo: GOOD_PHOTO, cover: GOOD_PHOTO,
+    items: [{ id: 'i1', kind: 'product', name: 'P', photos: [GOOD_PHOTO], video: null }],
+    theme: { accent: '#0A6B4F' }, testimonials: [], trust: [] }, patch || {});
+  async function tryInsert(slug, patch) {
+    const rr = await req('A', '/rest/v1/businesses', { method: 'POST', body: JSON.stringify(baseBiz(slug, patch)) });
+    return rr.status;
+  }
+  const newSlugs = [];
+  t('constraint: valid full row accepted', (await (async () => { const st = await tryInsert('rls-ok-full', {}); newSlugs.push('rls-ok-full'); return st; })()) === 201, 'valid insert');
+  const negs = [
+    ['slug too short', { slug: 'x' }],
+    ['slug reserved', { slug: 'admin' }],
+    ['slug malformed', { slug: 'BAD SLUG!!' }],
+    ['name too long', { name: 'n'.repeat(121) }],
+    ['description too long', { description: 'd'.repeat(5001) }],
+    ['facebook http', { facebook: 'http://evil.com/x' }],
+    ['logo arbitrary https', { logo: 'https://evil.com/x.jpg' }],
+    ['logo data-url', { logo: 'data:image/png;base64,xx' }],
+    ['item kind', { items: [{ id: 'i1', kind: 'weird', name: 'P' }] }],
+    ['item 5 photos', { items: [{ id: 'i1', kind: 'product', name: 'P', photos: [GOOD_PHOTO, GOOD_PHOTO, GOOD_PHOTO, GOOD_PHOTO, GOOD_PHOTO] }] }],
+    ['item photo scheme', { items: [{ id: 'i1', kind: 'product', name: 'P', photos: ['https://evil.com/x.jpg'] }] }],
+    ['item video scheme', { items: [{ id: 'i1', kind: 'product', name: 'P', video: 'https://evil.com/v.mp4' }] }],
+    ['item video ext', { items: [{ id: 'i1', kind: 'product', name: 'P', video: 'https://xyz.supabase.co/storage/v1/object/public/business-media/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222.mov' }] }],
+    ['accent malformed', { theme: { accent: 'red' } }],
+    ['accent non-hex', { theme: { accent: '#zzzzzz' } }],
+    ['testimonials 11', { testimonials: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] }],
+    ['trust 5', { trust: ['a', 'b', 'c', 'd', 'e'] }]
+  ];
+  for (let i = 0; i < negs.length; i++) {
+    const slug = 'rls-neg-' + i;
+    const st = await tryInsert(slug, negs[i][1]);
+    t('constraint rejects: ' + negs[i][0], st >= 400, st);
+  }
+
   // Cleanup (service role).
-  for (const slug of ['rls-a-live', 'rls-b-live', 'rls-b-expired', 'rls-b-susp', 'rls-forged'])
+  for (const slug of ['rls-a-live', 'rls-b-live', 'rls-b-expired', 'rls-b-susp', 'rls-forged', 'rls-ok-full'])
     await req('svc', '/rest/v1/businesses?slug=eq.' + slug, { method: 'DELETE' });
   for (const id of [A, B, AD]) {
     await req('svc', '/rest/v1/admins?user_id=eq.' + id, { method: 'DELETE' });

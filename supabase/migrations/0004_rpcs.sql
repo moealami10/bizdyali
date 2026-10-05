@@ -3,7 +3,7 @@
 
 -- New-user profile. Trigger only: phone comes from the verified OTP session.
 create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer set search_path to public as $$
+returns trigger language plpgsql security definer set search_path to public, pg_temp as $$
 begin
   insert into public.profiles (id, phone, name)
   values (new.id, coalesce(new.phone, ''), coalesce(new.raw_user_meta_data ->> 'name', ''))
@@ -18,7 +18,7 @@ create trigger on_auth_user_created after insert on auth.users
 -- Publish flow. Validates fields, upserts the owner's row, and sets the
 -- 14-day trial window ON FIRST PUBLISH ONLY. Never extends an existing trial.
 create or replace function public.publish_business(p_slug text, p_data jsonb)
-returns public.businesses language plpgsql security definer set search_path to public as $$
+returns public.businesses language plpgsql security definer set search_path to public, pg_temp as $$
 declare
   v_slug citext := lower(trim(both from coalesce(p_slug, '')));
   v_row public.businesses%rowtype;
@@ -74,7 +74,7 @@ grant execute on function public.publish_business(text, jsonb) to authenticated;
 -- The ONLY path that moves server-owned columns; every call is logged.
 create or replace function public.admin_set_status(p_business_id uuid, p_trial_end timestamptz,
   p_subscription text, p_suspended boolean)
-returns public.businesses language plpgsql security definer set search_path to public as $$
+returns public.businesses language plpgsql security definer set search_path to public, pg_temp as $$
 declare v_row public.businesses%rowtype;
 begin
   if not public.is_admin() then raise exception 'not authorized'; end if;
@@ -98,7 +98,7 @@ grant execute on function public.admin_set_status(uuid, timestamptz, text, boole
 -- Internal event writer. Deliberately NOT granted to any client role.
 create or replace function public.log_event(p_type text, p_actor text, p_actor_name text,
   p_business_id uuid, p_business_name text, p_owner_id uuid, p_details text)
-returns void language sql security definer set search_path to public as
+returns void language sql security definer set search_path to public, pg_temp as
   $$ insert into public.activity_log (type, actor, actor_name, business_id, business_name, owner_id, details)
      values (p_type, p_actor, p_actor_name, p_business_id, p_business_name, p_owner_id, p_details) $$;
 revoke all on function public.log_event(text, text, text, uuid, text, uuid, text) from public, anon, authenticated;
@@ -107,7 +107,7 @@ revoke all on function public.log_event(text, text, text, uuid, text, uuid, text
 -- name + status only (the "unavailable" page still works). Nothing otherwise.
 -- NEVER returns owner_id, profiles, or login phones.
 create or replace function public.public_business(p_slug text)
-returns jsonb language plpgsql stable security definer set search_path to public as $$
+returns jsonb language plpgsql stable security definer set search_path to public, pg_temp as $$
 declare v public.businesses%rowtype;
 begin
   select * into v from public.businesses
@@ -128,7 +128,7 @@ grant execute on function public.public_business(text) to anon, authenticated;
 
 -- Public directory. Limited columns only.
 create or replace function public.public_directory()
-returns jsonb language sql stable security definer set search_path to public as $$
+returns jsonb language sql stable security definer set search_path to public, pg_temp as $$
   select coalesce(jsonb_agg(jsonb_build_object('slug', slug, 'name', name, 'category', category,
     'city', city, 'cover', cover, 'logo', logo, 'isDemo', is_demo)
     order by created_at desc), '[]')

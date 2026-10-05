@@ -34,7 +34,7 @@ create policy activity_admin_select on public.activity_log
 -- admin_set_status() body referenced public.is_admin(): recreate it fixed.
 create or replace function public.admin_set_status(p_business_id uuid, p_trial_end timestamptz,
   p_subscription text, p_suspended boolean)
-returns public.businesses language plpgsql security definer set search_path to public as $$
+returns public.businesses language plpgsql security definer set search_path to public, pg_temp as $$
 declare v_row public.businesses%rowtype;
 begin
   if not app_private.is_admin() then raise exception 'not authorized'; end if;
@@ -60,14 +60,16 @@ grant execute on function public.admin_set_status(uuid, timestamptz, text, boole
 -- '+...'; every boundary strips exactly one leading '+' (mock, admin gate,
 -- wizard prefill strip it client-side in 3b; never store the plus).
 create or replace function app_private.handle_new_user()
-returns trigger language plpgsql security definer set search_path to public as $$
+returns trigger language plpgsql security definer set search_path to public, pg_temp as $$
 begin
   begin
     insert into public.profiles (id, phone, name)
     values (new.id, regexp_replace(coalesce(new.phone, ''), '^\\+', ''),
             coalesce(new.raw_user_meta_data ->> 'name', ''))
     on conflict (id) do nothing;
-  exception when others then null; -- signup must never die in a trigger
+  exception when others then
+    -- Observable but non-fatal: signup proceeds; ensure_profile() backstops.
+    raise warning 'handle_new_user failed for %: %', new.id, sqlerrm;
   end;
   return new;
 end $$;
@@ -76,7 +78,7 @@ alter table public.profiles drop constraint if exists profiles_phone_key;
 -- Backstop when the trigger row is ever missing (pre-trigger users, manual
 -- deletes): creates the caller's own profile from the verified JWT claim.
 create or replace function public.ensure_profile()
-returns public.profiles language plpgsql security definer set search_path to public as $$
+returns public.profiles language plpgsql security definer set search_path to public, pg_temp as $$
 declare v_row public.profiles%rowtype;
   v_phone text := regexp_replace(coalesce((auth.jwt() ->> 'phone'), ''), '^\\+', '');
 begin
@@ -95,7 +97,7 @@ grant execute on function public.ensure_profile() to authenticated;
 -- Client sends its base timestamp; a newer server row wins and comes back
 -- with conflict:true instead of being silently overwritten.
 create or replace function public.draft_save(p_data jsonb, p_base timestamptz)
-returns jsonb language plpgsql security definer set search_path to public as $$
+returns jsonb language plpgsql security definer set search_path to public, pg_temp as $$
 declare v_row public.drafts%rowtype;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
