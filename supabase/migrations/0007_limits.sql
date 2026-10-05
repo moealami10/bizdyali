@@ -24,8 +24,8 @@ alter table public.businesses
     jsonb_typeof(items) = 'array'
     and jsonb_array_length(items) <= 100
     and not exists (
-      select 1 from jsonb_array_elements(items) e
-      where e ->> 'kind' not in ('product', 'service')));
+      select 1 from jsonb_array_elements(items) as e(value)
+      where e.value ->> 'kind' not in ('product', 'service')));
 
 -- Small jsonb blobs: object shape + byte caps.
 alter table public.businesses

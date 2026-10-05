@@ -16,17 +16,17 @@ const crypto = require('crypto');
 let pass = 0, fail = 0;
 function t(n, cond, got) { if (cond) pass++; else { fail++; console.log('  FAIL:', n, got === undefined ? '' : JSON.stringify(got).slice(0, 200)); } }
 function b64url(o) { return Buffer.from(JSON.stringify(o)).toString('base64url'); }
-function mint(sub) {
+function mint(sub, phone) {
   const h = b64url({ alg: 'HS256', typ: 'JWT' });
-  const p = b64url({ sub, role: 'authenticated', aud: 'authenticated', exp: Math.floor(Date.now() / 1000) + 600 });
+  const p = b64url(Object.assign({ sub, role: 'authenticated', aud: 'authenticated', exp: Math.floor(Date.now() / 1000) + 600 }, phone ? { phone } : {}));
   const sig = crypto.createHmac('sha256', JWT_SECRET).update(h + '.' + p).digest('base64url');
   return h + '.' + p + '.' + sig;
 }
 const TOK = {
   anon: null,
-  A: process.env.TEST_TOKEN_A || mint('11111111-1111-1111-1111-111111111111'),
-  B: process.env.TEST_TOKEN_B || mint('22222222-2222-2222-2222-222222222222'),
-  admin: process.env.TEST_TOKEN_ADMIN || mint('33333333-3333-3333-3333-333333333333'),
+  A: process.env.TEST_TOKEN_A || mint('11111111-1111-1111-1111-111111111111', '15550001111'),
+  B: process.env.TEST_TOKEN_B || mint('22222222-2222-2222-2222-222222222222', '15550002222'),
+  admin: process.env.TEST_TOKEN_ADMIN || mint('33333333-3333-3333-3333-333333333333', '15550003333'),
   svc: null
 };
 async function req(who, path, opts) {
@@ -45,9 +45,9 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   const A = '11111111-1111-1111-1111-111111111111', B = '22222222-2222-2222-2222-222222222222', AD = '33333333-3333-3333-3333-333333333333';
   // Seed (service role bypasses RLS by design).
   await req('svc', '/rest/v1/profiles', { method: 'POST', body: JSON.stringify([
-    { id: A, phone: '+15550001111', name: 'User A' },
-    { id: B, phone: '+15550002222', name: 'User B' },
-    { id: AD, phone: '+15550003333', name: 'Admin' }]) });
+    { id: A, phone: '15550001111', name: 'User A' },
+    { id: B, phone: '15550002222', name: 'User B' },
+    { id: AD, phone: '15550003333', name: 'Admin' }]) });
   await req('svc', '/rest/v1/admins', { method: 'POST', body: JSON.stringify([{ user_id: AD }]) });
   const mkBiz = async (owner, slug, extra) => {
     const r = await req('svc', '/rest/v1/businesses', { method: 'POST', body: JSON.stringify(Object.assign(
@@ -106,9 +106,9 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   // Profiles privacy: phone trigger-only.
   r = await rest('A', 'profiles', '?select=id,phone');
   t('A: reads own profile only', Array.isArray(r.json) && r.json.length === 1 && r.json[0].id === A, r.json);
-  r = await req('A', '/rest/v1/profiles?id=eq.' + A, { method: 'PATCH', body: JSON.stringify({ phone: '+1999' }) });
+  r = await req('A', '/rest/v1/profiles?id=eq.' + A, { method: 'PATCH', body: JSON.stringify({ phone: '1999' }) });
   const after = await rest('A', 'profiles', '?select=phone');
-  t('A: phone unwritable', !((after.json || [])[0] || {}).phone || ((after.json || [])[0].phone !== '+1999'), r.status);
+  t('A: phone unwritable', !((after.json || [])[0] || {}).phone || ((after.json || [])[0].phone !== '1999'), r.status);
   r = await rest('A', 'admins', '?select=user_id');
   t('A: admins table invisible', Array.isArray(r.json) && r.json.length === 0, r.status);
 
@@ -141,9 +141,21 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   r = await rest('B', 'drafts', '?select=owner_id');
   t('B: cannot read A draft', Array.isArray(r.json) && r.json.length === 0, r.json);
 
-  // Storage: anon write denied.
+  // Storage: anon write denied; owner path allowed; forged path denied.
   const up = await fetch(BASE + '/storage/v1/object/business-media/anon/x.jpg', { method: 'POST', headers: { apikey: ANON }, body: 'x' });
   t('storage: anon write denied', up.status === 401 || up.status === 403, up.status);
+  const ownPath = '11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222.jpg';
+  const upOwn = await fetch(BASE + '/storage/v1/object/business-media/' + ownPath, { method: 'POST', headers: { apikey: ANON, Authorization: 'Bearer ' + TOK.A, 'Content-Type': 'image/jpeg' }, body: 'x' });
+  t('storage: owner path writable', upOwn.status === 200 || upOwn.status === 201, upOwn.status);
+  const upForged = await fetch(BASE + '/storage/v1/object/business-media/22222222-2222-2222-2222-222222222222/33333333-3333-3333-3333-333333333333.jpg', { method: 'POST', headers: { apikey: ANON, Authorization: 'Bearer ' + TOK.A, 'Content-Type': 'image/jpeg' }, body: 'x' });
+  t('storage: forged path denied', upForged.status === 400 || upForged.status === 403, upForged.status);
+  // Internal function invisible to REST (moved out of the exposed schema).
+  r = await rpc('admin', 'is_admin', {});
+  t('is_admin: not callable via REST', r.status === 404, r.status);
+  // ensure_profile backstop: delete A's row, restore via RPC.
+  await req('svc', '/rest/v1/profiles?id=eq.' + A, { method: 'DELETE' });
+  r = await rpc('A', 'ensure_profile', {});
+  t('ensure_profile restores own row', r.json && r.json.id === A && r.json.phone === '15550001111', (r.json || {}).phone);
 
   // Admin: full visibility.
   r = await rest('admin', 'businesses', '?select=slug');

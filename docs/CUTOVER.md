@@ -45,7 +45,16 @@ save after cutover; `idb:` references that cannot be resolved locally are
 dropped and reported in the owner dashboard. (No legacy users exist yet,
 so this path is currently dormant by design.)
 
-## Rollback
+## Rollback (read the caveat)
 Static hosting: revert the `js/config.js` commit to return to mock/local.
-Database writes before rollback stay where they are; the local app simply
-stops reading them. No destructive step exists in cutover.
+Caveat: database writes made during the backend window (publishes, edits,
+uploads) stay in the database; the local app stops reading them, so owners
+will NOT see that work locally after rollback. There is no destructive step
+in cutover, but there is also no automatic merge-back: re-flipping to
+`supabase` later resumes exactly where the database left off.
+
+## Canonical phone form
+Every boundary stores E.164 digits WITHOUT '+'. GoTrue supplies '+...';
+`handle_new_user()` / `ensure_profile()` strip one leading '+', the mock
+provider and admin gate compare digits-only, and the client re-adds '+' only
+when dialing out (`tel:`, `wa.me`). Never store the plus.

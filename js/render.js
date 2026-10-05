@@ -28,10 +28,25 @@
     return ((words[0] || 'B').charAt(0) + (words[1] ? words[1].charAt(0) : '')).toUpperCase();
   }
   function media() { return (global.BizDyali && global.BizDyali.media) || {}; }
+  // Link hrefs: https only. Anything else (javascript:, data:, ...) is dropped.
+  function safeHttp(u) {
+    var t = String(u || '').trim();
+    return /^https:\/\/[^\s"']+$/i.test(t) ? t : '';
+  }
+  // Media src: https, image/video data URLs, local idb:/assets: refs, same-origin blobs.
+  function safeMedia(u) {
+    var t = String(u || '').trim();
+    if (/^https:\/\/[^\s"']+$/i.test(t)) return t;
+    if (/^data:(image|video)\/[a-z0-9.+\-]+;base64,/i.test(t)) return t;
+    if (/^(idb|assets):[^\s"']+$/i.test(t)) return t;
+    if (/^blob:[^\s"']+$/i.test(t)) return t;
+    return '';
+  }
   function photoSrc(p) {
     var m = media();
-    if (m.photoSrc) return m.photoSrc(p);
-    return typeof p === 'string' ? p : ((p && p.src) || '');
+    if (m.photoSrc) return safeMedia(m.photoSrc(p));
+    var raw = typeof p === 'string' ? p : ((p && p.src) || '');
+    return safeMedia(raw);
   }
   function photoPos(p) {
     var m = media();
@@ -248,9 +263,10 @@
   }
 
   function videoHtml(it, T) {
-    if (!it.video) return '';
-    var poster = (it.photos && it.photos[0]) ? ' poster="' + photoSrc(it.photos[0]) + '"' : '';
-    return '<video controls preload="none" playsinline' + poster + ' src="' + it.video + '" aria-label="' + esc(T('itemVideo', { name: it.name })) + '"></video>';
+    var vsrc = safeMedia(it.video);
+    if (!vsrc) return '';
+    var poster = (it.photos && it.photos[0] && photoSrc(it.photos[0])) ? ' poster="' + photoSrc(it.photos[0]) + '"' : '';
+    return '<video controls preload="none" playsinline' + poster + ' src="' + vsrc + '" aria-label="' + esc(T('itemVideo', { name: it.name })) + '"></video>';
   }
 
   function catalogHtml(biz, title, iconName, items, T, accent, opts) {
@@ -318,8 +334,9 @@
 
   function socialHtml(biz, T) {
     var links = [];
-    if (biz.facebook) links.push('<a class="soc" href="' + esc(biz.facebook) + '" target="_blank" rel="noopener">' + ic('facebook') + 'Facebook</a>');
-    if (biz.instagram) links.push('<a class="soc" href="' + esc(biz.instagram) + '" target="_blank" rel="noopener">' + ic('instagram') + 'Instagram</a>');
+    var fb = safeHttp(biz.facebook), ig = safeHttp(biz.instagram);
+    if (fb) links.push('<a class="soc" href="' + esc(fb) + '" target="_blank" rel="noopener">' + ic('facebook') + 'Facebook</a>');
+    if (ig) links.push('<a class="soc" href="' + esc(ig) + '" target="_blank" rel="noopener">' + ic('instagram') + 'Instagram</a>');
     if (!links.length) return '';
     return '<section class="bp-sec" aria-label="Social media"><div class="bp-sec-head rv">' + ic('share-2') + '<h2>' + esc(T('followUs')) + '</h2></div><div class="soc-row">' + links.join('') + '</div></section>';
   }
