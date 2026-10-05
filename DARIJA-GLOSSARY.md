@@ -202,6 +202,8 @@ repair, freelancers). The language must never imply every user owns a shop.
 | terms (link) | الشروط | 🔒 | Short label; full legal text is owner's job |
 | privacy (link) | الخصوصية | 🔒 | Short label |
 | WhatsApp number (login) | نمرة الواتساب | 🔒 | Already the product term |
+| opening soon (auth gate) | جاي قريب | 💬 | Title when sign-in is not open yet on this host |
+| contact on WhatsApp (gate) | سولنا فواتساب | 💬 | Button linking to the BizDyali WhatsApp contact |
 | human verification (CAPTCHA) | التحقق | 🔒 | Short label; never transliterate "captcha" |
 | paste (code) | لصّق الكود | 🔒 | Button label next to the code field |
 
