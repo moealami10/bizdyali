@@ -67,7 +67,7 @@ begin
   -- Server functions (publish_business) set this flag for their own writes.
   if current_setting('bizdyali.bypass_owner_force', true) = 'on' then return new; end if;
   -- Admins are server-verified via the admins table (see is_admin()).
-  if public.is_admin() then return new; end if;
+  if app_private.is_admin() then return new; end if;
   -- Demo seed rows bypass forcing (clients can never set is_demo:
   -- it is excluded from every column grant and from publish_business()).
   if coalesce(new.is_demo, false) then return new; end if;

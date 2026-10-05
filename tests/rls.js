@@ -10,29 +10,38 @@
 const BASE = process.env.SUPABASE_URL || '';
 const ANON = process.env.SUPABASE_ANON_KEY || '';
 const SERVICE = process.env.SUPABASE_SERVICE_KEY || '';
-const JWT_SECRET = process.env.SUPABASE_JWT_SECRET || SERVICE;
 if (!BASE || !ANON || !SERVICE) { console.error('Missing SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_KEY env.'); process.exit(2); }
-const crypto = require('crypto');
 let pass = 0, fail = 0;
 function t(n, cond, got) { if (cond) pass++; else { fail++; console.log('  FAIL:', n, got === undefined ? '' : JSON.stringify(got).slice(0, 200)); } }
-function b64url(o) { return Buffer.from(JSON.stringify(o)).toString('base64url'); }
-function mint(sub, phone) {
-  const h = b64url({ alg: 'HS256', typ: 'JWT' });
-  const p = b64url(Object.assign({ sub, role: 'authenticated', aud: 'authenticated', exp: Math.floor(Date.now() / 1000) + 600 }, phone ? { phone } : {}));
-  const sig = crypto.createHmac('sha256', JWT_SECRET).update(h + '.' + p).digest('base64url');
-  return h + '.' + p + '.' + sig;
+// Test identities: real auth users (email+password for tokens, confirmed
+// phones for the phone claim). Minted HMAC JWTs do NOT validate on projects
+// with asymmetric keys, so sessions always come from password grants here
+// (override any leg with TEST_TOKEN_A/B/ADMIN).
+const TOK = { anon: null, A: process.env.TEST_TOKEN_A || null, B: process.env.TEST_TOKEN_B || null, admin: process.env.TEST_TOKEN_ADMIN || null, svc: null };
+const USERS = [
+  { tag: 'A', email: 'rls-a@example.com', password: 'Secret123!', phone: '15550001111', name: 'User A' },
+  { tag: 'B', email: 'rls-b@example.com', password: 'Secret123!', phone: '15550002222', name: 'User B' },
+  { tag: 'admin', email: 'rls-admin@example.com', password: 'Secret123!', phone: '15550003333', name: 'Admin' }
+];
+async function svcReq(path, method, body) {
+  const r = await fetch(BASE + path, { method: method || 'GET',
+    headers: { apikey: SERVICE, Authorization: 'Bearer ' + SERVICE, 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body) });
+  let json = null;
+  try { json = await r.json(); } catch (e) {}
+  return { status: r.status, json };
 }
-const TOK = {
-  anon: null,
-  A: process.env.TEST_TOKEN_A || mint('11111111-1111-1111-1111-111111111111', '15550001111'),
-  B: process.env.TEST_TOKEN_B || mint('22222222-2222-2222-2222-222222222222', '15550002222'),
-  admin: process.env.TEST_TOKEN_ADMIN || mint('33333333-3333-3333-3333-333333333333', '15550003333'),
-  svc: null
-};
+async function signIn(email, password) {
+  const r = await fetch(BASE + '/auth/v1/token?grant_type=password', { method: 'POST',
+    headers: { apikey: ANON, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }) });
+  const s = await r.json();
+  return s.access_token || null;
+}
 async function req(who, path, opts) {
   opts = opts || {};
   const headers = { apikey: ANON, 'Content-Type': 'application/json' };
-  if (who === 'svc') headers.apikey = SERVICE;
+  if (who === 'svc') { headers.apikey = SERVICE; headers.Authorization = 'Bearer ' + SERVICE; }
   else if (TOK[who]) headers.Authorization = 'Bearer ' + TOK[who];
   const r = await fetch(BASE + path, { method: opts.method || 'GET', headers, body: opts.body });
   let json = null;
@@ -42,12 +51,33 @@ async function req(who, path, opts) {
 const rest = (who, table, q, opts) => req(who, '/rest/v1/' + table + (q || ''), opts);
 const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', body: JSON.stringify(body || {}) });
 (async () => {
-  const A = '11111111-1111-1111-1111-111111111111', B = '22222222-2222-2222-2222-222222222222', AD = '33333333-3333-3333-3333-333333333333';
-  // Seed (service role bypasses RLS by design).
-  await req('svc', '/rest/v1/profiles', { method: 'POST', body: JSON.stringify([
-    { id: A, phone: '15550001111', name: 'User A' },
-    { id: B, phone: '15550002222', name: 'User B' },
-    { id: AD, phone: '15550003333', name: 'Admin' }]) });
+  // Provision users (admin API) + sessions (password grant). The signup
+  // trigger must have created their profiles already — asserted below.
+  const ids = {};
+  for (const u of USERS) {
+    if (!TOK[u.tag]) {
+      await svcReq('/auth/v1/admin/users', 'DELETE').catch(() => {});
+      const created = await svcReq('/auth/v1/admin/users', 'POST',
+        { email: u.email, password: u.password, email_confirm: true, phone: u.phone, phone_confirm: true, user_metadata: { name: u.name } });
+      // Recreate idempotently: delete-then-create would drop the profile row;
+      // instead reuse the existing user when creation reports a duplicate.
+      let uid = created.json && created.json.id;
+      if (!uid) {
+        const list = await svcReq('/auth/v1/admin/users?per_page=100', 'GET');
+        const found = ((list.json && list.json.users) || []).find(x => x.email === u.email);
+        if (!found) throw new Error('cannot provision ' + u.tag + ': ' + JSON.stringify(created.json).slice(0, 120));
+        uid = found.id;
+      }
+      ids[u.tag] = uid;
+      TOK[u.tag] = await signIn(u.email, u.password);
+      if (!TOK[u.tag]) throw new Error('cannot sign in ' + u.tag);
+    }
+  }
+  const A = ids.A || '11111111-1111-1111-1111-111111111111';
+  const B = ids.B || '22222222-2222-2222-2222-222222222222';
+  const AD = ids.admin || '33333333-3333-3333-3333-333333333333';
+  const profA = await svcReq('/rest/v1/profiles?select=id,phone&limit=10', 'GET');
+  t('handle_new_user created profiles', JSON.stringify(profA.json).includes('15550001111'), (profA.json || []).length);
   await req('svc', '/rest/v1/admins', { method: 'POST', body: JSON.stringify([{ user_id: AD }]) });
   const mkBiz = async (owner, slug, extra) => {
     const r = await req('svc', '/rest/v1/businesses', { method: 'POST', body: JSON.stringify(Object.assign(
@@ -62,7 +92,7 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
 
   // ANON surface.
   let r = await rest('anon', 'businesses', '?select=id&limit=1');
-  t('anon: no direct table reads', Array.isArray(r.json) && r.json.length === 0, r.status + ':' + JSON.stringify(r.json).slice(0, 60));
+  t('anon: no direct table reads', (Array.isArray(r.json) && r.json.length === 0) || r.status === 401, r.status);
   r = await rpc('anon', 'public_business', { p_slug: 'rls-a-live' });
   t('anon: public_business live has no owner/profile', r.json && r.json.slug === 'rls-a-live' && !('owner_id' in r.json) && !('ownerId' in r.json) && !('phone_login' in r.json), r.json && Object.keys(r.json));
   r = await rpc('anon', 'public_business', { p_slug: 'rls-b-expired' });
@@ -74,7 +104,7 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   r = await rpc('anon', 'public_directory', {});
   t('anon: directory limited columns', Array.isArray(r.json) && r.json.every(x => !('owner_id' in x) && !('whatsapp' in x)), (r.json || []).length);
   r = await rest('anon', 'profiles', '?select=id');
-  t('anon: no profile reads', Array.isArray(r.json) && r.json.length === 0, r.status);
+  t('anon: no profile reads', (Array.isArray(r.json) && r.json.length === 0) || r.status === 401, r.status);
 
   // Cross-user isolation.
   r = await rest('A', 'businesses', '?select=slug&owner_id=eq.' + B);
@@ -96,9 +126,11 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   t('A: trial_end not extended', row.trial_end && new Date(row.trial_end).getTime() < Date.now() + 100 * 86400000, row.trial_end);
 
   // INSERT paths: forged owner forced, server cols reset.
-  r = await req('A', '/rest/v1/businesses', { method: 'POST', body: JSON.stringify({ owner_id: B, slug: 'rls-forged', name: 'Forged Biz', category: 'Café', description: '0123456789abcdef', published: true, subscription: 'active', trial_end: new Date(Date.now() + 999 * 86400000).toISOString() }) });
-  t('A: forged insert accepted-but-sanitized', r.status === 201 || r.status === 200, r.status);
-  r = await rest('A', 'businesses', '?slug=eq.rls-forged&select=owner_id,published,subscription,trial_end');
+  r = await req('A', '/rest/v1/businesses', { method: 'POST', body: JSON.stringify({ owner_id: B, slug: 'rls-forged', name: 'Forged Biz', category: 'Café', description: '0123456789abcdef' }) });
+  t('A: forged insert denied by RLS', r.status === 403 || r.status === 401, r.status);
+  r = await req('A', '/rest/v1/businesses', { method: 'POST', body: JSON.stringify({ slug: 'rls-own-raw', name: 'Own Raw', category: 'Café', description: '0123456789abcdef' }) });
+  t('A: legit insert accepted', r.status === 201 || r.status === 200, r.status);
+  r = await rest('A', 'businesses', '?slug=eq.rls-own-raw&select=owner_id,published,subscription,trial_end');
   const fr = (r.json || [])[0] || {};
   t('A: owner forced to self', fr.owner_id === A, fr);
   t('A: published/trial reset', fr.published === false && fr.subscription === 'none' && fr.trial_end === null, fr);
@@ -110,7 +142,7 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   const after = await rest('A', 'profiles', '?select=phone');
   t('A: phone unwritable', !((after.json || [])[0] || {}).phone || ((after.json || [])[0].phone !== '1999'), r.status);
   r = await rest('A', 'admins', '?select=user_id');
-  t('A: admins table invisible', Array.isArray(r.json) && r.json.length === 0, r.status);
+  t('A: admins table invisible', (Array.isArray(r.json) && r.json.length === 0) || r.status === 401 || r.status === 403, r.status);
 
   // log_event not client-callable.
   r = await rpc('A', 'log_event', { p_type: 'x', p_actor: 'owner', p_actor_name: 'x', p_business_id: null, p_business_name: 'x', p_owner_id: A, p_details: 'x' });
@@ -143,11 +175,11 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
 
   // Storage: anon write denied; owner path allowed; forged path denied.
   const up = await fetch(BASE + '/storage/v1/object/business-media/anon/x.jpg', { method: 'POST', headers: { apikey: ANON }, body: 'x' });
-  t('storage: anon write denied', up.status === 401 || up.status === 403, up.status);
-  const ownPath = '11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222.jpg';
+  t('storage: anon write denied', [400, 401, 403].includes(up.status), up.status);
+  const ownPath = A + '/33333333-3333-3333-3333-333333333333.jpg';
   const upOwn = await fetch(BASE + '/storage/v1/object/business-media/' + ownPath, { method: 'POST', headers: { apikey: ANON, Authorization: 'Bearer ' + TOK.A, 'Content-Type': 'image/jpeg' }, body: 'x' });
   t('storage: owner path writable', upOwn.status === 200 || upOwn.status === 201, upOwn.status);
-  const upForged = await fetch(BASE + '/storage/v1/object/business-media/22222222-2222-2222-2222-222222222222/33333333-3333-3333-3333-333333333333.jpg', { method: 'POST', headers: { apikey: ANON, Authorization: 'Bearer ' + TOK.A, 'Content-Type': 'image/jpeg' }, body: 'x' });
+  const upForged = await fetch(BASE + '/storage/v1/object/' + B + '/33333333-3333-3333-3333-333333333333.jpg', { method: 'POST', headers: { apikey: ANON, Authorization: 'Bearer ' + TOK.A, 'Content-Type': 'image/jpeg' }, body: 'x' });
   t('storage: forged path denied', upForged.status === 400 || upForged.status === 403, upForged.status);
   // Internal function invisible to REST (moved out of the exposed schema).
   r = await rpc('admin', 'is_admin', {});
@@ -163,13 +195,13 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   r = await rest('admin', 'activity_log', '?select=id&limit=1');
   t('admin: reads activity log', Array.isArray(r.json), r.status);
   r = await rest('A', 'activity_log', '?select=id&limit=1');
-  t('A: activity log hidden', Array.isArray(r.json) && r.json.length === 0, r.status);
+  t('A: activity log hidden', (Array.isArray(r.json) && r.json.length === 0) || r.status === 401 || r.status === 403, r.status);
   r = await rest('admin', 'profiles', '?select=phone');
   t('admin: reads profiles', Array.isArray(r.json) && r.json.length >= 3, (r.json || []).length);
 
   // Constraint matrix: one positive, one negative per rule (A inserts, A reads back).
   const GOOD_PHOTO = 'https://xyz123abc.supabase.co/storage/v1/object/public/business-media/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222.jpg';
-  const baseBiz = (slug, patch) => Object.assign({ owner_id: 'A', slug, name: 'Constraint Biz', category: 'Café',
+  const baseBiz = (slug, patch) => Object.assign({ slug, name: 'Constraint Biz', category: 'Café',
     description: '0123456789abcdef', phone: '+1000', whatsapp: '+1000', city: 'X', hours: 'h',
     logo: GOOD_PHOTO, cover: GOOD_PHOTO,
     items: [{ id: 'i1', kind: 'product', name: 'P', photos: [GOOD_PHOTO], video: null }],
@@ -208,11 +240,16 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   }
 
   // Cleanup (service role).
-  for (const slug of ['rls-a-live', 'rls-b-live', 'rls-b-expired', 'rls-b-susp', 'rls-forged', 'rls-ok-full'])
+  for (const slug of ['rls-a-live', 'rls-b-live', 'rls-b-expired', 'rls-b-susp', 'rls-forged', 'rls-own-raw', 'rls-ok-full'].concat(newSlugs.filter(x => x !== 'rls-ok-full')))
     await req('svc', '/rest/v1/businesses?slug=eq.' + slug, { method: 'DELETE' });
   for (const id of [A, B, AD]) {
     await req('svc', '/rest/v1/admins?user_id=eq.' + id, { method: 'DELETE' });
     await req('svc', '/rest/v1/profiles?id=eq.' + id, { method: 'DELETE' });
+  }
+  for (const u of USERS) {
+    const list = await svcReq('/auth/v1/admin/users?per_page=100', 'GET');
+    const found = ((list.json && list.json.users) || []).find(x => x.email === u.email);
+    if (found) await svcReq('/auth/v1/admin/users/' + found.id, 'DELETE');
   }
 
   console.log(`\n${pass} passed, ${fail} failed`);

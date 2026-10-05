@@ -134,25 +134,6 @@ alter table public.businesses
   add constraint businesses_urls_https check (
     (facebook = '' or facebook like 'https://%')
     and (instagram = '' or instagram like 'https://%')),
-  add constraint businesses_mediaref_pattern check (
-    (logo = '' or logo like 'https://%' or logo like 'data:image/%' or logo like 'idb:%' or logo like 'assets/%')
-    and (cover = '' or cover like 'https://%' or cover like 'data:image/%' or cover like 'idb:%' or cover like 'assets/%')),
-  add constraint businesses_item_media check (
-    not exists (
-      select 1 from jsonb_array_elements(items) as it(value)
-      where jsonb_typeof(it.value) <> 'object'
-         or (it.value ->> 'kind') not in ('product', 'service')
-         or jsonb_array_length(coalesce(
-              case when jsonb_typeof(it.value -> 'photos') = 'array' then it.value -> 'photos' end, '[]')) > 4
-         or exists (
-           select 1 from jsonb_array_elements_text(coalesce(
-             case when jsonb_typeof(it.value -> 'photos') = 'array' then it.value -> 'photos' end, '[]')) as ph(value)
-           where ph.value not like 'https://%' and ph.value not like 'data:image/%'
-             and ph.value not like 'idb:%' and ph.value not like 'assets/%')
-         or ((it.value ->> 'video') is not null and (it.value ->> 'video') <> ''
-             and (it.value ->> 'video') not like 'https://%'
-             and (it.value ->> 'video') not like 'data:video/%'
-             and (it.value ->> 'video') not like 'idb:%'
-             and (it.value ->> 'video') not like 'assets/%'))),
+  -- Media patterns live in 0010 (pinned hosts + trigger; CHECKs forbid subqueries).
   add constraint businesses_accent_hex check (
     theme ->> 'accent' is null or theme ->> 'accent' ~ '^#[0-9a-fA-F]{6}$');

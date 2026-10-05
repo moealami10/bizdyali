@@ -22,10 +22,10 @@ alter table public.businesses
 alter table public.businesses
   add constraint businesses_items_shape check (
     jsonb_typeof(items) = 'array'
-    and jsonb_array_length(items) <= 100
-    and not exists (
-      select 1 from jsonb_array_elements(items) as e(value)
-      where e.value ->> 'kind' not in ('product', 'service')));
+    and jsonb_array_length(items) <= 100);
+-- Per-element item rules (kind whitelist, photo/video patterns) cannot live in
+-- CHECKs (no subqueries allowed) — they are enforced by the
+-- validate_business_items() trigger in 0010 instead.
 
 -- Small jsonb blobs: object shape + byte caps.
 alter table public.businesses
