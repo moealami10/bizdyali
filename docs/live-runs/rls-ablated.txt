@@ -1,0 +1,5 @@
+  FAIL: publish: fresh row publishes "rls-pub1"
+  FAIL: publish: trial ~14d out null
+  FAIL: publish: null trial filled null
+
+70 passed, 3 failed

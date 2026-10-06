@@ -1,0 +1,13 @@
+  FAIL: publish: republish never extends "2026-10-20T02:31:22.681345+00:00"
+  FAIL: publish: null trial filled null
+  FAIL: cap: 6th slug fails 200
+  FAIL: owner: is_demo+billing PATCH denied 204
+  FAIL: owner: billing unchanged [{"subscription":"active"}]
+  FAIL: admin: direct status write denied by grant [{"subscription":"active"}]
+  FAIL: admin: action logged [{"type":"business_created"},{"type":"trial_started"},{"type":"business_created"},{"type":"trial_started"},{"type":"business_created"}]
+  FAIL: nophone: draft insert denied 201
+  FAIL: nophone: publish denied (phone required) 200
+  FAIL: null item kind rejected 201
+  FAIL: 121-char profile name rejected 204
+
+60 passed, 11 failed

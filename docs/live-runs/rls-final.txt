@@ -1,0 +1,7 @@
+  FAIL: A: name write works {"name":"Biz rls-a-live","subscription":"none","suspended":false,"trial_end":"2026-10-07T02:38:02.045+00:00"}
+  FAIL: publish: republish never extends "2026-10-20T02:32:24.626975+00:00"
+  FAIL: cap: 6th slug fails 200
+  FAIL: admin: action logged [{"type":"business_created"},{"type":"trial_started"},{"type":"business_created"},{"type":"trial_started"},{"type":"business_created"}]
+  FAIL: constraint: valid full row accepted "valid insert"
+
+66 passed, 5 failed

@@ -41,7 +41,8 @@ const USERS = [
   { tag: 'admin', email: 'rls-admin@example.com', password: 'Secret123!', phone: '15550003333', name: 'Admin' },
   { tag: 'nophone', email: 'rls-nophone@example.com', password: 'Secret123!', name: 'No Phone' },
   { tag: 'plus', email: 'rls-plus@example.com', password: 'Secret123!', phone: '+15550004444', name: 'Plus' },
-  { tag: 'cap', email: 'rls-cap@example.com', password: 'Secret123!', phone: '15550005555', name: 'Cap' }
+  { tag: 'cap', email: 'rls-cap@example.com', password: 'Secret123!', phone: '15550005555', name: 'Cap' },
+  { tag: 'mx', email: 'rls-mx@example.com', password: 'Secret123!', phone: '15550006666', name: 'Matrix' }
 ];
 async function svcReq(path, method, body) {
   const r = await fetch(BASE + path, { method: method || 'GET',
@@ -97,6 +98,7 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   const B = ids.B || '22222222-2222-2222-2222-222222222222';
   const AD = ids.admin || '33333333-3333-3333-3333-333333333333';
   const CAP = ids.cap || '44444444-4444-4444-4444-444444444444';
+  const MX = ids.mx || '55555555-5555-5555-5555-555555555555';
   const profA = await svcReq('/rest/v1/profiles?select=id,phone&limit=10', 'GET');
   t('handle_new_user created profiles', JSON.stringify(profA.json).includes('15550001111'), (profA.json || []).length);
   await req('svc', '/rest/v1/admins', { method: 'POST', body: JSON.stringify([{ user_id: AD }]) });
@@ -140,8 +142,12 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   })();
   t('A: cannot patch B', patchB === 404 || patchB === 403 || (await (await fetch(BASE + '/rest/v1/businesses?owner_id=eq.' + B + '&select=name', { headers: { apikey: ANON, Authorization: 'Bearer ' + TOK.A } })).json()).every(x => x.name !== 'Hacked'), patchB);
 
-  // Owner cannot move server columns (trigger reverts).
-  await req('A', '/rest/v1/businesses?slug=eq.rls-a-live', { method: 'PATCH', body: JSON.stringify({ trial_end: new Date(Date.now() + 999 * 86400000).toISOString(), subscription: 'active', suspended: true, name: 'A Renamed' }) });
+  // Safe-column write applies; any server column in the same write fails it
+  // atomically at grant level (403, nothing applies — stronger than revert).
+  r = await req('A', '/rest/v1/businesses?slug=eq.rls-a-live', { method: 'PATCH', body: JSON.stringify({ name: 'A Renamed' }) });
+  t('A: safe-column PATCH accepted', r.status === 200 || r.status === 204, r.status);
+  r = await req('A', '/rest/v1/businesses?slug=eq.rls-a-live', { method: 'PATCH', body: JSON.stringify({ trial_end: new Date(Date.now() + 999 * 86400000).toISOString(), subscription: 'active', suspended: true }) });
+  t('A: server-column PATCH denied whole', r.status === 403 || r.status === 400, r.status);
   r = await rest('A', 'businesses', '?slug=eq.rls-a-live&select=name,subscription,suspended,trial_end');
   const row = (r.json || [])[0] || {};
   t('A: name write works', row.name === 'A Renamed', row);
@@ -180,7 +186,8 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   t('publish: trial ~14d out', t1 > Date.now() + 13 * 86400000 && t1 < Date.now() + 15 * 86400000, (r.json || {}).trial_end);
   newSlugs.push('rls-pub1');
   r = await rpc('A', 'publish_business', { p_slug: 'rls-pub1', p_data: { name: 'Pub One Again', category: 'Café', description: '0123456789abcdef' } });
-  t('publish: republish never extends', (r.json || {}).trial_end === new Date(t1).toISOString(), (r.json || {}).trial_end);
+  t('publish: first trial is a real timestamp', Number.isFinite(t1), (r.json || {}).trial_end);
+  t('publish: republish never extends', Number.isFinite(t1) && new Date((r.json || {}).trial_end).getTime() === t1, (r.json || {}).trial_end);
   // legacy null-trial row gets filled once, then frozen
   await req('svc', '/rest/v1/businesses', { method: 'POST', body: JSON.stringify({ owner_id: A, slug: 'rls-nulltrial', name: 'Null Trial', category: 'Café', description: '0123456789abcdef', published: true }) });
   newSlugs.push('rls-nulltrial');
@@ -217,7 +224,7 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   const bizId = ((await rest('admin', 'businesses', '?slug=eq.rls-b-live&select=id')).json || [])[0].id;
   r = await rpc('admin', 'admin_set_status', { p_business_id: bizId, p_trial_end: new Date(Date.now() + 30 * 86400000).toISOString(), p_subscription: null, p_suspended: null });
   t('admin: set_status extends trial', r.json && r.json.slug === 'rls-b-live', (r.json || {}).slug);
-  const logs = await rest('admin', 'activity_log', '?select=type&limit=5');
+  const logs = await rest('admin', 'activity_log', '?select=type&order=ts.desc&limit=5');
   t('admin: action logged', Array.isArray(logs.json) && logs.json.some(x => x.type === 'admin_action'), logs.json);
 
   // Drafts isolation.
@@ -262,7 +269,7 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
     const rr = await req(who || 'A', '/rest/v1/businesses', { method: 'POST', body: JSON.stringify(baseBiz(slug, patch)) });
     return rr.status;
   }
-  t('constraint: valid full row accepted', (await (async () => { const st = await tryInsert('rls-ok-full', {}, 'cap'); newSlugs.push('rls-ok-full'); return st; })()) === 201, 'valid insert');
+  t('constraint: valid full row accepted', (await (async () => { const st = await tryInsert('rls-ok-full', {}, 'mx'); newSlugs.push('rls-ok-full'); return st; })()) === 201, 'valid insert');
   const negs = [
     ['slug too short', { slug: 'x' }],
     ['slug reserved', { slug: 'admin' }],
@@ -286,7 +293,7 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   ];
   for (let i = 0; i < negs.length; i++) {
     const slug = 'rls-neg-' + i;
-    const st = await tryInsert(slug, negs[i][1], 'cap');
+    const st = await tryInsert(slug, negs[i][1], 'mx');
     t('constraint rejects: ' + negs[i][0], st >= 400, st);
   }
 

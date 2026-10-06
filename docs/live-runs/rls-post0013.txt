@@ -1,0 +1,12 @@
+  FAIL: anon: public_business live has no owner/profile null
+  FAIL: anon: expired reveals name+status only null
+  FAIL: anon: suspended reveals name+status only null
+  FAIL: A: reads own rows []
+  FAIL: A: name write works {}
+  FAIL: A: subscription/suspended reverted {}
+  FAIL: A: trial_end not extended 
+  FAIL: publish: republish never extends "2026-10-20T02:32:24.626975+00:00"
+  FAIL: cap: 6th slug fails 200
+  FAIL: owner: billing unchanged []
+  FAIL: admin: direct status write denied by grant []
+FATAL Cannot read properties of undefined (reading 'id')

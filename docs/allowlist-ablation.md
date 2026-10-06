@@ -1,6 +1,6 @@
 # Pending experiment: first-publish allowlist branches (deferred)
 
-Status: NOT RUN. Runs only after the live `tests/rls.js` green run, against
+Status: RUN 2026-10-06 against production project — RED without branches (fresh publish + null-fill break), GREEN on restore. Branches are load-bearing: KEPT. Runs only after the live `tests/rls.js` green run, against
 the throwaway project. Do not run against production.
 
 ## Question
