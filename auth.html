@@ -27,7 +27,7 @@
       <div id="soonBox" hidden>
         <h2 class="page-title" style="font-size:1.2rem">الدخول جاي قريب</h2>
         <p class="page-sub">كنوجدو ليكم الدخول بواتساب. تواصل معانا إلا بغيتي تكون من اللولين.</p>
-        <div class="btn-row"><a class="btn btn-primary btn-lg" href="https://wa.me/212600000000?text=Hello%20BizDyali!%20I%20want%20early%20access." target="_blank" rel="noopener">سولنا فواتساب</a></div>
+        <div class="btn-row"><a class="btn btn-primary btn-lg" href="https://wa.me/212631522155?text=Hello%20BizDyali!%20I%20want%20early%20access." target="_blank" rel="noopener">سولنا فواتساب</a></div>
       </div>
       <div id="authErr" class="form-err" role="alert" aria-live="assertive" hidden></div>
       <div id="captchaBox" aria-hidden="true"></div>
@@ -72,7 +72,6 @@
     if (BizAuth.getUser()) { var _nx = BizAuth.validateNext(params.get('next')); var _bz = params.get('biz');
       location.replace(_nx === 'dashboard.html' && _bz ? 'create.html?biz=' + encodeURIComponent(_bz.slice(0, 60)) : _nx); return; }
     // Public hosts without a backend: friendly gate instead of a failing form.
-    // (The wa.me number above is the existing placeholder — see TODO in index.html.)
     if (!BizAuth.isPrivateHost(location.hostname) && (!window.BizConfig || window.BizConfig.provider !== 'supabase' || !window.BizConfig.supabaseUrl)) {
       document.getElementById('phoneForm').hidden = true;
       document.getElementById('codeForm').hidden = true;
