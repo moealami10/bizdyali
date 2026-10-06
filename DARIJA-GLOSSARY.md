@@ -207,6 +207,16 @@ repair, freelancers). The language must never imply every user owns a shop.
 | human verification (CAPTCHA) | التحقق | 🔒 | Short label; never transliterate "captcha" |
 | paste (code) | لصّق الكود | 🔒 | Button label next to the code field |
 
+## Backend notices (server round-trips)
+
+| Concept | Darija | Use | Why |
+|---|---|---|---|
+| publish landed on an used-up trial | الصفحة تنشرات، ولكن الفترة الفابور سالات — خلّص الاشتراك باش تبان للزبناء. | 💬 | For the publish redirect when the trial window is already over; states fact + next step, no blame |
+| page limit (5 pages) | الحد الأقصى | 🔒 | The noun; full line below is the example |
+| page limit reached | ما يمكنش تزيد أكثر من 5 دالصفحات. | 💬 | Short refusal for the cap error path |
+| draft changed elsewhere | الصفحة تبدلات فبلاصة خرى. حملنا النسخة الجديدة. | 💬 | Draft-conflict reload notice; plain spoken cause + what happened |
+| link already taken | هاد الرابط مستعمل. بدّل شوية. | 💬 | Slug-collision (409) message |
+
 ## Never translate (technical + brand)
 
 `BizDyali` · `WhatsApp` · `Facebook` · `Instagram` · `QR` · `MAD` inside code

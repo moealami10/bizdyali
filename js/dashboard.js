@@ -13,6 +13,14 @@
     location.replace('index.html');
   });
 
+  function isRemote() { return BizDyali.isRemote(); }
+  function dropRemote(ref) {
+    if (!isRemote() || !window.BizAuth) return;
+    BizAuth.accessToken().then(function (tk) {
+      if (tk) BizDyali.media.dropStorageRef(ref, tk);
+    }).catch(function () {});
+  }
+
   var $ = function (id) { return document.getElementById(id); };
   var err = $('dashErr'), ok = $('dashOk');
   function showErr(m) { err.textContent = m; err.hidden = false; ok.hidden = true; }
@@ -20,6 +28,14 @@
   function hideMsgs() { err.hidden = true; ok.hidden = true; }
 
   var params = new URLSearchParams(location.search);
+  try {
+    if (sessionStorage.getItem('bizdyali_trialover') === '1') {
+      sessionStorage.removeItem('bizdyali_trialover');
+      var tw = $('welcomeMsg');
+      tw.textContent = 'الصفحة تنشرات، ولكن الفترة الفابور سالات — خلّص الاشتراك باش تبان للزبناء.';
+      tw.hidden = false;
+    }
+  } catch (e) {}
   if (params.get('welcome') === '1') {
     var w = $('welcomeMsg');
     w.textContent = '🎉 تنشرات الصفحة ديالك! بدات الفترة الفابور ديال 14 يوم. پارطاجي الرابط ديالك لتحت.';
@@ -34,7 +50,7 @@
 
   function refreshSelect() {
     var sel = $('bizSelect'); sel.innerHTML = '';
-    myList().forEach(function (b) {
+    myListCache.forEach(function (b) {
       var o = document.createElement('option');
       o.value = b.id; o.textContent = b.name + ' (/' + b.slug + ')';
       sel.appendChild(o);
@@ -42,25 +58,38 @@
     if (biz) sel.value = biz.id;
   }
 
+  function myList() { return []; }
   function load(id) {
-    var list = myList();
-    if (!list.length) {
-      $('noBiz').hidden = false; $('dashBody').hidden = true;
-      $('bizTitle').textContent = 'الصفحات ديالك';
-      return;
-    }
-    biz = BizDyali.getBusiness(id) || list[0];
-    if (!biz || biz.ownerId !== user.id) biz = list[0];
-    refreshSelect();
-    fillAll();
-    $('noBiz').hidden = true; $('dashBody').hidden = false;
+    Promise.resolve(BizDyali.myBusinesses(user.id)).then(function (list) {
+      myListCache = list;
+      if (!list.length) {
+        $('noBiz').hidden = false; $('dashBody').hidden = true;
+        $('bizTitle').textContent = 'الصفحات ديالك';
+        return;
+      }
+      var pick = list.filter(function (b) { return b.id === id; })[0] || list[0];
+      if (!pick || pick.ownerId !== user.id) pick = list[0];
+      biz = pick;
+      refreshSelect();
+      fillAll();
+      $('noBiz').hidden = true; $('dashBody').hidden = false;
+    }).catch(function (e) { showErr((e && e.message) || 'كاين شي مشكل.'); });
   }
+  var myListCache = [];
+  function myList() { return myListCache; }
 
   function persist(silent) {
-    var res = BizDyali.saveBusiness(biz);
-    if (res.error) { showErr(res.error); return false; }
-    if (!silent) showOk('تسجّل ✓ — الصفحة ديالك تحدّثات.');
-    return true;
+    return Promise.resolve(BizDyali.saveBusiness(biz)).then(function (res) {
+      if (res.error) { showErr(res.error); return false; }
+      if (res.business) {
+        biz = res.business;
+        var i = myListCache.findIndex(function (b) { return b.id === biz.id; });
+        if (i >= 0) myListCache[i] = biz; else myListCache.push(biz);
+        refreshSelect();
+      }
+      if (!silent) showOk('تسجّل ✓ — الصفحة ديالك تحدّثات.');
+      return true;
+    }, function (e) { showErr((e && e.message) || 'كاين شي مشكل.'); return false; });
   }
 
   // ---- Trial banner ----
@@ -174,15 +203,17 @@
     biz.instagram = $('d_instagram').value.trim();
     biz.offeringType = $('d_offering').value;
     if (biz.name.length < 2) return showErr('سمية المشروع ضرورية.');
-    if (persist()) {
+    persist().then(function (ok) {
+      if (!ok) return;
       BizDyali.logEvent('info_changed', { actor: 'owner', actorName: user.name, businessId: biz.id, businessName: biz.name, ownerId: user.id, details: 'Name, contact, hours, location or social links updated' });
       renderTrial(); renderOverview(); refreshSelect();
-    }
+    });
   });
   $('deleteBtn').addEventListener('click', function () {
     if (!confirm('مسح "' + biz.name + '" نهائيا؟ هادي ما كترجعش.')) return;
-    BizDyali.deleteBusiness(biz.id);
-    biz = null; load(null);
+    Promise.resolve(BizDyali.deleteBusiness(biz.id)).then(function () {
+      biz = null; load(null);
+    }).catch(function (e) { showErr((e && e.message) || 'كاين شي مشكل.'); });
   });
 
   // ---- Branding tab (uploads prefer IndexedDB blobs, data-URL fallback) ----
@@ -193,6 +224,14 @@
     }
   }
   function uploadImage(file, maxFull, done) {
+    if (isRemote()) {
+      if (!window.BizAuth) return showErr('ما كايناش الكونكسيون.');
+      BizAuth.accessToken().then(function (tk) {
+        if (!tk) throw new Error('signed out');
+        return BizDyali.media.uploadImageRemote(file, maxFull, user.id, tk);
+      }).then(done).catch(function (e2) { showErr(e2.message); });
+      return;
+    }
     var useIdb = BizDyali.media.idbSupported();
     BizDyali.media.processImage(file, { maxFull: maxFull, store: useIdb ? 'idb' : undefined }).then(function (o) {
       done(o.ref ? { src: o.ref, thumb: o.thumb } : o.full);
@@ -215,27 +254,29 @@
   $('d_logo').addEventListener('change', function (e) {
     var f = e.target.files[0]; if (!f) return;
     uploadImage(f, 600, function (ref) {
-      dropRef(biz.logo); biz.logo = ref;
-      if (persist()) {
+      dropRef(biz.logo); dropRemote(biz.logo); biz.logo = ref;
+      persist().then(function (ok) {
+        if (!ok) return;
         BizDyali.logEvent('image_uploaded', { actor: 'owner', actorName: user.name, businessId: biz.id, businessName: biz.name, ownerId: user.id, details: 'Logo updated' });
         fillBranding();
-      }
+      });
     });
     e.target.value = '';
   });
   $('d_cover').addEventListener('change', function (e) {
     var f = e.target.files[0]; if (!f) return;
     uploadImage(f, 1400, function (ref) {
-      dropRef(biz.cover); biz.cover = ref;
-      if (persist()) {
+      dropRef(biz.cover); dropRemote(biz.cover); biz.cover = ref;
+      persist().then(function (ok) {
+        if (!ok) return;
         BizDyali.logEvent('image_uploaded', { actor: 'owner', actorName: user.name, businessId: biz.id, businessName: biz.name, ownerId: user.id, details: 'Cover image updated' });
         fillBranding();
-      }
+      });
     });
     e.target.value = '';
   });
-  $('removeLogo').addEventListener('click', function () { dropRef(biz.logo); biz.logo = null; if (persist()) fillBranding(); });
-  $('removeCover').addEventListener('click', function () { dropRef(biz.cover); biz.cover = null; if (persist()) fillBranding(); });
+  $('removeLogo').addEventListener('click', function () { dropRef(biz.logo); dropRemote(biz.logo); biz.logo = null; persist().then(function (ok) { if (ok) fillBranding(); }); });
+  $('removeCover').addEventListener('click', function () { dropRef(biz.cover); dropRemote(biz.cover); biz.cover = null; persist().then(function (ok) { if (ok) fillBranding(); }); });
 
   // ---- Catalog tab ----
   document.querySelectorAll('[data-filter]').forEach(function (p) {
@@ -268,13 +309,15 @@
        ['✏️', 'بدّل', function () { openEditor(it.kind, it.id); }],
        ['🗑️', 'مسح', function () {
           if (confirm('مسح "' + it.name + '"؟')) {
-            (it.photos || []).forEach(function (ph) { dropRef(ph && ph.src ? ph.src : ph); });
+            (it.photos || []).forEach(function (ph) { dropRef(ph && ph.src ? ph.src : ph); dropRemote(ph && ph.src ? ph.src : ph); });
+            if (it.video) dropRemote(it.video);
             biz.items = biz.items.filter(function (x) { return x.id !== it.id; });
             renumber();
-            if (persist(true)) {
+            persist(true).then(function (ok) {
+              if (!ok) return;
               BizDyali.logEvent(it.kind === 'service' ? 'service_deleted' : 'product_deleted', { actor: 'owner', actorName: user.name, businessId: biz.id, businessName: biz.name, ownerId: user.id, details: it.name });
               renderItems(); showOk('تمسحات.');
-            }
+            });
           }
         }]].forEach(function (cfg) {
         var b = document.createElement('button');
@@ -293,7 +336,7 @@
     var j = i + dir;
     if (i < 0 || j < 0 || j >= s.length) return;
     var t = s[i].order; s[i].order = s[j].order; s[j].order = t;
-    if (persist(true)) renderItems();
+    persist(true).then(function (ok) { if (ok) renderItems(); });
   }
   function openEditor(kind, id) {
     hideMsgs();
@@ -330,6 +373,7 @@
         ev2.stopPropagation();
         var gone = edPhotos.splice(i, 1)[0];
         dropRef(gone && gone.src ? gone.src : gone);
+        dropRemote(gone && gone.src ? gone.src : gone);
         renderEdMedia();
       });
       d.appendChild(img); d.appendChild(x); t.appendChild(d);
@@ -373,8 +417,22 @@
   $('d_addService').addEventListener('click', function () { openEditor('service'); });
   $('d_it_cancel').addEventListener('click', function () { $('d_editor').hidden = true; editingId = null; });
   $('d_it_photos').addEventListener('change', function (e) {
-    var useIdb = BizDyali.media.idbSupported();
     var files = Array.prototype.slice.call(e.target.files || []).slice(0, 4 - edPhotos.length);
+    if (isRemote()) {
+      if (!window.BizAuth) { showErr('ما كايناش الكونكسيون.'); e.target.value = ''; return; }
+      BizAuth.accessToken().then(function (tk) {
+        if (!tk) throw new Error('signed out');
+        (function next() {
+          var f = files.shift(); if (!f) { e.target.value = ''; return; }
+          BizDyali.media.uploadImageRemote(f, 900, user.id, tk).then(function (ref) {
+            ref.fx = 50; ref.fy = 50;
+            edPhotos.push(ref); renderEdMedia(); next();
+          }).catch(function (e2) { showErr(e2.message); next(); });
+        })();
+      }).catch(function () { showErr('ما كايناش الكونكسيون.'); e.target.value = ''; });
+      return;
+    }
+    var useIdb = BizDyali.media.idbSupported();
     (function next() {
       var f = files.shift(); if (!f) { e.target.value = ''; return; }
       BizDyali.media.processImage(f, { maxFull: 900, store: useIdb ? 'idb' : undefined }).then(function (o) {
@@ -385,6 +443,16 @@
   });
   $('d_it_video').addEventListener('change', function (e) {
     var f = e.target.files[0]; if (!f) return;
+    if (isRemote()) {
+      if (!window.BizAuth) { showErr('ما كايناش الكونكسيون.'); e.target.value = ''; return; }
+      BizAuth.accessToken().then(function (tk) {
+        if (!tk) throw new Error('signed out');
+        return BizDyali.media.uploadVideoRemote(f, user.id, tk);
+      }).then(function (url) {
+        dropRemote(edVideo); edVideo = url; renderEdMedia(); e.target.value = '';
+      }).catch(function (e2) { showErr(e2.message); e.target.value = ''; });
+      return;
+    }
     BizDyali.media.fileToVideoDataURL(f, 10).then(function (url) {
       edVideo = url; renderEdMedia(); e.target.value = '';
     }).catch(function (e2) { showErr(e2.message); e.target.value = ''; });
@@ -410,13 +478,14 @@
       biz.items.push({ id: 'it_' + Date.now().toString(36) + Math.floor(Math.random() * 999), kind: edKind, name: name, description: $('d_it_desc').value.trim(), price: price, photos: edPhotos, video: edVideo, order: biz.items.length, section: extra.section, badge: extra.badge, duration: extra.duration });
     }
     $('d_editor').hidden = true; editingId = null;
-    if (persist()) {
+    persist().then(function (ok) {
+      if (!ok) return;
       var kindWord = edKind === 'service' ? 'service' : 'product';
       itemLog(prev ? kindWord + '_edited' : kindWord + '_added', name + (price != null ? ' — ' + price + ' MAD' : ''));
       if (edPhotos.length > prevPhotoCount) itemLog('image_uploaded', name + ': ' + (edPhotos.length - prevPhotoCount) + ' photo(s) added');
       if (edVideo && !prevHadVideo) itemLog('video_uploaded', name + ': video attached');
       renderItems();
-    }
+    });
   });
 
   // ---- Design, hours & QR tab ----
@@ -464,10 +533,11 @@
     if (Object.keys(th).length) biz.theme = th; else delete biz.theme;
     biz.lang = $('d_lang').value || undefined;
     if (!biz.lang) delete biz.lang;
-    if (persist()) {
+    persist().then(function (ok) {
+      if (!ok) return;
       BizDyali.logEvent('admin_action', { actor: 'owner', actorName: user.name, businessId: biz.id, businessName: biz.name, ownerId: user.id, details: 'Updated design settings' });
       showOk('تسجّل الديزاين ✓ — شوف الصفحة باش تشوفو.');
-    }
+    });
   });
   var WEEKDAYS = [['mon', 'Monday'], ['tue', 'Tuesday'], ['wed', 'Wednesday'], ['thu', 'Thursday'], ['fri', 'Friday'], ['sat', 'Saturday'], ['sun', 'Sunday']];
   function buildHoursEditor() {
@@ -500,14 +570,15 @@
     });
     function host_query(k) { var el = document.querySelector('[data-hw-day="' + k + '"]'); return el && el.checked; }
     if (Object.keys(hw).length) biz.hoursWeek = hw; else delete biz.hoursWeek;
-    if (persist()) {
+    persist().then(function (ok) {
+      if (!ok) return;
       BizDyali.logEvent('info_changed', { actor: 'owner', actorName: user.name, businessId: biz.id, businessName: biz.name, ownerId: user.id, details: 'Updated structured opening hours' });
       showOk('تسجّل التوقيت ✓ — “حال دابا” خدامة دابا.');
-    }
+    });
   });
   $('clearHoursBtn').addEventListener('click', function () {
     delete biz.hoursWeek;
-    if (persist()) { buildHoursEditor(); showOk('تمسح التوقيت المفصّل — التوقيت المكتوب هو اللي خدام.'); }
+    persist().then(function (ok) { if (ok) { buildHoursEditor(); showOk('تمسح التوقيت المفصّل — التوقيت المكتوب هو اللي خدام.'); } });
   });
   $('qrPosterBtn').addEventListener('click', function () {
     if (typeof qrcode === 'undefined') return showErr('مكتبة QR ما تحمّلاتش. شوف الكونكسيون وعاود.');
@@ -538,8 +609,12 @@
     });
   });
   $('bizSelect').addEventListener('change', function (e) {
-    biz = BizDyali.getBusiness(e.target.value);
-    fillAll();
+    var id = e.target.value;
+    Promise.resolve(BizDyali.getBusiness(id)).then(function (b) {
+      if (!b) return;
+      biz = b;
+      fillAll();
+    }).catch(function (er) { showErr((er && er.message) || 'كاين شي مشكل.'); });
   });
 
   function fillAll() { hideMsgs(); renderTrial(); renderOverview(); fillInfo(); fillBranding(); renderItems(); fillDesign(); }

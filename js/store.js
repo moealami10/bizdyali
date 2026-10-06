@@ -139,39 +139,318 @@
   }
   function requireAdmin() { return currentAdmin(); } // every admin* fn calls this first
 
+  function remote() {
+    return !!(global.BizDb && global.BizConfig && global.BizConfig.provider === 'supabase' && global.BizConfig.supabaseUrl);
+  }
+  function token() {
+    if (global.BizAuth && BizAuth.accessToken) return BizAuth.accessToken().then(function (t) {
+      if (!t) throw new Error('signed out');
+      return t;
+    });
+    return Promise.reject(new Error('signed out'));
+  }
+  function draftBufKey(ownerId) { return 'bizdyali_draft_' + ownerId + '_v1'; }
+  var draftServerTs = {}; // ownerId -> last known server drafts.updated_at
+  var draftServerWon = false;
+  function storagePathsOf(biz) {
+    var out = [];
+    function add(u) {
+      if (!global.BizDb) return;
+      var p = BizDb.storagePathFromUrl(u);
+      if (p) out.push(p);
+    }
+    function walk(ph) { if (ph) add(typeof ph === 'string' ? ph : ph.src); }
+    if (!biz) return out;
+    walk(biz.logo); walk(biz.cover);
+    (biz.items || []).forEach(function (it) {
+      (it.photos || []).forEach(walk);
+      if (it.video) add(it.video);
+    });
+    return out;
+  }
+  function dropStoragePaths(paths, tk) {
+    (paths || []).forEach(function (p) {
+      BizDb.storageRemove(p, tk).catch(function () {});
+    });
+  }
+
+  var R = {
+    myBusinesses: function (ownerId) {
+      return token().then(function (t) {
+        return BizDb.rest('businesses', '?select=*&order=updated_at.desc', {}, t);
+      }).then(function (r) { return (r.json || []).map(BizDb.toBiz); });
+    },
+    getBusiness: function (id) {
+      return token().then(function (t) {
+        return BizDb.rest('businesses', '?id=eq.' + encodeURIComponent(id) + '&limit=1', {}, t);
+      }).then(function (r) { return BizDb.toBiz((r.json || [])[0] || null); });
+    },
+    saveBusiness: function (biz) {
+      var tk, oldPaths = [];
+      return token().then(function (t) {
+        tk = t;
+        return BizDb.rest('businesses', '?id=eq.' + encodeURIComponent(biz.id) + '&select=logo,cover,items&limit=1', {}, t);
+      }).then(function (r) {
+        var old = BizDb.toBiz((r.json || [])[0] || null);
+        oldPaths = old ? storagePathsOf(old) : [];
+        return BizDb.rest('businesses', '', { method: 'POST', body: JSON.stringify(BizDb.toRow(biz)), prefer: 'resolution=merge-duplicates,return=representation' }, tk);
+      }).then(function (r2) {
+        var saved = BizDb.toBiz((r2.json || [])[0] || null);
+        var fresh = {};
+        storagePathsOf(saved).forEach(function (p) { fresh[p] = true; });
+        dropStoragePaths(oldPaths.filter(function (p) { return !fresh[p]; }), tk);
+        return { business: saved };
+      });
+    },
+    deleteBusiness: function (id) {
+      var tk, paths = [];
+      return token().then(function (t) {
+        tk = t;
+        return BizDb.rest('businesses', '?id=eq.' + encodeURIComponent(id) + '&select=logo,cover,items&limit=1', {}, t);
+      }).then(function (r) {
+        var old = BizDb.toBiz((r.json || [])[0] || null);
+        paths = old ? storagePathsOf(old) : [];
+        return BizDb.rest('businesses', '?id=eq.' + encodeURIComponent(id), { method: 'DELETE' }, tk);
+      }).then(function () {
+        dropStoragePaths(paths, tk);
+        return { deleted: true };
+      });
+    },
+    publishBusiness: function (biz, slug) {
+      slug = slugify(slug || biz.name);
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return Promise.resolve({ error: 'Link can only contain lowercase letters, numbers and dashes.' });
+      return token().then(function (t) {
+        return BizDb.rpc('publish_business', { p_slug: slug, p_data: BizDb.toPayload(biz) }, t);
+      }).then(function (r) {
+        return { business: BizDb.toBiz(r.json) };
+      }, function (e) { return { error: BizDb.mapPublishError(e).message }; });
+    },
+    loadDraft: function (ownerId) {
+      draftServerWon = false;
+      var local = null;
+      try { local = JSON.parse(localStorage.getItem(draftBufKey(ownerId)) || 'null'); } catch (e) {}
+      return token().then(function (t) {
+        return BizDb.rest('drafts', '?owner_id=eq.' + encodeURIComponent(ownerId) + '&select=data,updated_at&limit=1', {}, t);
+      }).then(function (r) {
+        var row = (r.json || [])[0] || null;
+        if (row && (!local || !local.serverTs || row.updated_at > local.serverTs)) {
+          draftServerTs[ownerId] = row.updated_at;
+          draftServerWon = !!(local && local.serverTs);
+          try { localStorage.setItem(draftBufKey(ownerId), JSON.stringify({ data: row.data, serverTs: row.updated_at })); } catch (e) {}
+          return row.data;
+        }
+        if (local) { draftServerTs[ownerId] = local.serverTs || null; return local.data; }
+        return null;
+      }, function () {
+        if (local) { draftServerTs[ownerId] = local.serverTs || null; return local.data; }
+        return null;
+      });
+    },
+    saveDraft: function (ownerId, draft) {
+      var base = draftServerTs[ownerId] || null;
+      try { localStorage.setItem(draftBufKey(ownerId), JSON.stringify({ data: draft, serverTs: base })); } catch (e) {}
+      return token().then(function (t) {
+        return BizDb.rpc('draft_save', { p_data: draft, p_base: base }, t);
+      }).then(function (r) {
+        if (r.json && r.json.conflict) {
+          draftServerTs[ownerId] = r.json.updated_at || null;
+          try { localStorage.setItem(draftBufKey(ownerId), JSON.stringify({ data: r.json.server, serverTs: r.json.updated_at || null })); } catch (e) {}
+          return { conflict: true, server: r.json.server };
+        }
+        draftServerTs[ownerId] = (r.json && r.json.updated_at) || null;
+        return { conflict: false };
+      }, function () { return { conflict: false }; });
+    },
+    clearDraft: function (ownerId) {
+      try { localStorage.removeItem(draftBufKey(ownerId)); } catch (e) {}
+      delete draftServerTs[ownerId];
+      return token().then(function (t) {
+        return BizDb.rest('drafts', '?owner_id=eq.' + encodeURIComponent(ownerId), { method: 'DELETE' }, t);
+      }).then(function () {}, function () {});
+    },
+    getBySlug: function (slug) {
+      return BizDb.publicBusiness(slug).then(function (j) {
+        if (!j) return null;
+        if (j.status) return { unavailable: true, name: j.name, slug: j.slug };
+        return BizDb.toBiz(j);
+      });
+    },
+    ensureUniqueSlug: function (slug) { return Promise.resolve(slug); },
+    checkAndLogExpiry: function () { return Promise.resolve(false); },
+    logEvent: function () { return Promise.resolve({ ok: true }); },
+    seedDemo: function () { return Promise.resolve(); },
+    currentAdmin: function () {
+      var user = (global.BizAuth && BizAuth.getUser) ? BizAuth.getUser() : null;
+      if (!user) return Promise.resolve(null);
+      return token().then(function (t) {
+        return BizDb.rest('activity_log', '?select=id&limit=1', {}, t);
+      }).then(function () { return { phone: user.phone, name: user.name || '' }; },
+        function () { return null; });
+    },
+    adminAllBusinesses: function () {
+      return R.currentAdmin().then(function (admin) {
+        if (!admin) return { error: 'Not authorized. Admin sign-in required.' };
+        return token();
+      }).then(function (t) {
+        if (!t || !t.phone) return t;
+        return BizDb.rest('businesses', '?select=*&order=created_at.desc', {}, t);
+      }).then(function (r) {
+        if (!r.json) return r;
+        return { businesses: (r.json || []).map(BizDb.toBiz).sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); }) };
+      });
+    },
+    adminStats: function () {
+      return R.adminAllBusinesses().then(function (res) {
+        if (res.error) return res;
+        var list = res.businesses;
+        var now = new Date();
+        var startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        var startOfWeek = startOfDay - ((now.getDay() + 6) % 7) * 86400000;
+        var startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+        var st = { total: list.length, trial: 0, subscribed: 0, expired: 0, draft: 0, suspended: 0, today: 0, week: 0, month: 0 };
+        list.forEach(function (b) {
+          var s = trialState(b).status;
+          if (s === 'trial') st.trial++;
+          else if (s === 'subscribed') st.subscribed++;
+          else if (s === 'expired') st.expired++;
+          else if (s === 'draft') st.draft++;
+          if (b.suspended) st.suspended++;
+          var c = new Date(b.createdAt).getTime();
+          if (c >= startOfDay) st.today++;
+          if (c >= startOfWeek) st.week++;
+          if (c >= startOfMonth) st.month++;
+        });
+        return { stats: st };
+      });
+    },
+    adminGetLogs: function (limit) {
+      return R.currentAdmin().then(function (admin) {
+        if (!admin) return { error: 'Not authorized. Admin sign-in required.' };
+        return token();
+      }).then(function (t) {
+        if (!t || !t.phone) return t;
+        return BizDb.rest('activity_log', '?select=*&order=ts.desc&limit=' + (limit || 300), {}, t);
+      }).then(function (r) {
+        if (!r.json) return r;
+        return { logs: (r.json || []).map(function (e) {
+          return { id: e.id, ts: e.ts, type: e.type, actor: e.actor, actorName: e.actor_name,
+            businessId: e.business_id, businessName: e.business_name, ownerId: e.owner_id, details: e.details };
+        }) };
+      });
+    },
+    adminUpdateInfo: function (id, fields, note) {
+      var tk;
+      return R.currentAdmin().then(function (admin) {
+        if (!admin) return { error: 'Not authorized. Admin sign-in required.' };
+        return token();
+      }).then(function (t) {
+        if (!t || !t.phone) return t;
+        tk = t;
+        var body = {};
+        ['name', 'category', 'description', 'phone', 'whatsapp', 'address', 'city', 'hours', 'facebook', 'instagram'].forEach(function (k) {
+          if (fields[k] !== undefined) body[k] = fields[k];
+        });
+        if (fields.offeringType !== undefined) body.offering_type = fields.offeringType;
+        return BizDb.rest('businesses', '?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify(body) }, tk);
+      }).then(function () { return R.getBusiness(id); })
+        .then(function (biz) { return biz ? { business: biz } : { error: 'Business not found.' }; });
+    },
+    adminStatus: function (id, args) {
+      return R.currentAdmin().then(function (admin) {
+        if (!admin) return { error: 'Not authorized. Admin sign-in required.' };
+        return token();
+      }).then(function (t) {
+        if (!t || !t.phone) return t;
+        return BizDb.rpc('admin_set_status', Object.assign({ p_business_id: id, p_trial_end: null, p_subscription: null, p_suspended: null, p_published: null }, args || {}), t);
+      }).then(function (r) { return { business: BizDb.toBiz(r.json) }; },
+        function (e) { return { error: (e && e.message) || 'request failed' }; });
+    },
+    adminExtendTrial: function (id, extraDays) {
+      extraDays = Math.max(1, Math.min(365, Number(extraDays) || 0));
+      if (!extraDays) return Promise.resolve({ error: 'Please enter a valid number of days.' });
+      return R.getBusiness(id).then(function (biz) {
+        if (!biz) return { error: 'Business not found.' };
+        if (!biz.published) return { error: 'Only published pages have a trial to extend.' };
+        var base = Math.max(new Date(biz.trialEnd).getTime(), Date.now());
+        return R.adminStatus(id, { p_trial_end: new Date(base + extraDays * 86400000).toISOString() });
+      });
+    },
+    adminSetSubscription: function (id, active) {
+      return R.adminStatus(id, { p_subscription: active ? 'active' : 'none' });
+    },
+    adminSetSuspended: function (id, suspended) {
+      return R.adminStatus(id, { p_suspended: !!suspended });
+    },
+    adminUnpublish: function (id) {
+      return R.adminStatus(id, { p_published: false });
+    },
+    adminDeleteBusiness: function (id) {
+      var tk, paths = [];
+      return R.currentAdmin().then(function (admin) {
+        if (!admin) return { error: 'Not authorized. Admin sign-in required.' };
+        return R.getBusiness(id);
+      }).then(function (biz) {
+        if (!biz || biz.error) return biz || { error: 'Business not found.' };
+        paths = storagePathsOf(biz);
+        return token();
+      }).then(function (t) {
+        if (!t || !t.phone) return t;
+        tk = t;
+        return BizDb.rest('businesses', '?id=eq.' + encodeURIComponent(id), { method: 'DELETE' }, tk);
+      }).then(function () { dropStoragePaths(paths, tk); return { deleted: true }; });
+    }
+  };
+
   var api = {
     TRIAL_DAYS: TRIAL_DAYS,
     SUBSCRIPTION_PRICE: SUBSCRIPTION_PRICE,
+    isRemote: function () { return remote(); },
+    draftServerWon: function () { var w = draftServerWon; draftServerWon = false; return w; },
 
 
     // ---- Businesses (independent per business, scoped per owner) ----
     blankBusiness: blankBusiness,
     myBusinesses: function (ownerId) {
-      return allBusinesses().filter(function (b) { return b.ownerId === ownerId; })
-        .sort(function (a, b) { return new Date(b.updatedAt) - new Date(a.updatedAt); });
+      if (remote()) return R.myBusinesses(ownerId);
+      return Promise.resolve(allBusinesses().filter(function (b) { return b.ownerId === ownerId; })
+        .sort(function (a, b) { return new Date(b.updatedAt) - new Date(a.updatedAt); }));
     },
     getBusiness: function (id) {
-      return allBusinesses().find(function (b) { return b.id === id; }) || null;
+      if (remote()) return R.getBusiness(id);
+      return Promise.resolve(allBusinesses().find(function (b) { return b.id === id; }) || null);
     },
     getBySlug: function (slug) {
+      if (remote()) return R.getBySlug(slug);
       slug = String(slug || '').toLowerCase();
-      return allBusinesses().find(function (b) { return b.slug === slug && b.published; }) || null;
+      return Promise.resolve(allBusinesses().find(function (b) { return b.slug === slug && b.published; }) || null);
     },
     saveBusiness: function (biz) {
-      biz.updatedAt = new Date().toISOString();
-      var list = allBusinesses();
-      var i = list.findIndex(function (b) { return b.id === biz.id; });
-      if (i >= 0) list[i] = biz; else list.push(biz);
-      try { saveAllBusinesses(list); }
-      catch (e) { return { error: 'Storage is full (large photos/videos). Try smaller images.' }; }
-      return { business: biz };
+      if (remote()) return R.saveBusiness(biz);
+      return Promise.resolve().then(function () {
+        biz.updatedAt = new Date().toISOString();
+        var list = allBusinesses();
+        var i = list.findIndex(function (b) { return b.id === biz.id; });
+        if (i >= 0) list[i] = biz; else list.push(biz);
+        try { saveAllBusinesses(list); }
+        catch (e) { return { error: 'Storage is full (large photos/videos). Try smaller images.' }; }
+        return { business: biz };
+      });
     },
     deleteBusiness: function (id) {
-      saveAllBusinesses(allBusinesses().filter(function (b) { return b.id !== id; }));
+      if (remote()) return R.deleteBusiness(id);
+      return Promise.resolve().then(function () {
+        saveAllBusinesses(allBusinesses().filter(function (b) { return b.id !== id; }));
+        return { deleted: true };
+      });
     },
     slugify: slugify,
-    ensureUniqueSlug: ensureUniqueSlug,
+    ensureUniqueSlug: function (slug, ignoreId) {
+      if (remote()) return R.ensureUniqueSlug(slug);
+      return Promise.resolve(ensureUniqueSlug(slug, ignoreId));
+    },
     publishBusiness: function (biz, slug) {
+      if (remote()) return R.publishBusiness(biz, slug);
+      return Promise.resolve().then(function () {
       slug = slugify(slug || biz.name);
       if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return { error: 'Link can only contain lowercase letters, numbers and dashes.' };
       biz.slug = ensureUniqueSlug(slug, biz.id);
@@ -187,37 +466,59 @@
       } catch (e) {}
       biz.trialStart = now.toISOString();
       biz.trialEnd = new Date(now.getTime() + TRIAL_DAYS * 86400000).toISOString();
-      var res = api.saveBusiness(biz);
-      if (!res.error) {
-        var counts = { product: 0, service: 0 };
-        (biz.items || []).forEach(function (it) { counts[it.kind === 'service' ? 'service' : 'product']++; });
-        logEvent('business_created', { actor: 'owner', actorName: biz.ownerName, businessId: biz.id, businessName: biz.name, ownerId: biz.ownerId, details: counts.product + ' products, ' + counts.service + ' services' });
-        logEvent('trial_started', { actor: 'system', businessId: biz.id, businessName: biz.name, ownerId: biz.ownerId, details: 'Free until ' + fmtDate(biz.trialEnd) });
-      }
-      return res;
+      return api.saveBusiness(biz).then(function (res) {
+        if (!res.error) {
+          var counts = { product: 0, service: 0 };
+          (biz.items || []).forEach(function (it) { counts[it.kind === 'service' ? 'service' : 'product']++; });
+          logEvent('business_created', { actor: 'owner', actorName: biz.ownerName, businessId: biz.id, businessName: biz.name, ownerId: biz.ownerId, details: counts.product + ' products, ' + counts.service + ' services' });
+          logEvent('trial_started', { actor: 'system', businessId: biz.id, businessName: biz.name, ownerId: biz.ownerId, details: 'Free until ' + fmtDate(biz.trialEnd) });
+        }
+        return res;
+      });
+      });
     },
 
     // ---- Wizard draft (per user, so refresh never loses work) ----
-    loadDraft: function (ownerId) { return read('bizdyali_draft_' + ownerId + '_v1', null); },
-    saveDraft: function (ownerId, draft) {
-      try { write('bizdyali_draft_' + ownerId + '_v1', draft); } catch (e) { /* draft too big, ignore */ }
+    loadDraft: function (ownerId) {
+      if (remote()) return R.loadDraft(ownerId);
+      return Promise.resolve(read('bizdyali_draft_' + ownerId + '_v1', null));
     },
-    clearDraft: function (ownerId) { localStorage.removeItem('bizdyali_draft_' + ownerId + '_v1'); },
+    saveDraft: function (ownerId, draft) {
+      if (remote()) return R.saveDraft(ownerId, draft);
+      return Promise.resolve().then(function () {
+        try { write('bizdyali_draft_' + ownerId + '_v1', draft); } catch (e) { /* draft too big, ignore */ }
+        return { conflict: false };
+      });
+    },
+    clearDraft: function (ownerId) {
+      if (remote()) return R.clearDraft(ownerId);
+      return Promise.resolve().then(function () {
+        try { localStorage.removeItem('bizdyali_draft_' + ownerId + '_v1'); } catch (e) {}
+      });
+    },
 
     trialState: trialState,
     subscriptionStatus: subscriptionStatus,
-    checkAndLogExpiry: checkAndLogExpiry,
+    checkAndLogExpiry: function (biz) {
+      if (remote()) return R.checkAndLogExpiry(biz);
+      return Promise.resolve(checkAndLogExpiry(biz));
+    },
     publicUrl: publicUrl,
     fmtDate: fmtDate,
 
     // ---- Admin (every function re-verifies the owner-phone gate) ----
-    currentAdmin: currentAdmin,
+    currentAdmin: function () {
+      if (remote()) return R.currentAdmin();
+      return Promise.resolve(currentAdmin());
+    },
     adminLogout: function () { if (global.BizAuth) BizAuth.signOut(); },
     adminAllBusinesses: function () {
+      if (remote()) return R.adminAllBusinesses();
       if (!requireAdmin()) return { error: 'Not authorized. Admin sign-in required.' };
       return { businesses: allBusinesses().slice().sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); }) };
     },
     adminStats: function () {
+      if (remote()) return R.adminStats();
       if (!requireAdmin()) return { error: 'Not authorized. Admin sign-in required.' };
       var list = allBusinesses();
       var now = new Date();
@@ -240,12 +541,14 @@
       return { stats: s };
     },
     adminGetLogs: function (limit) {
+      if (remote()) return R.adminGetLogs(limit);
       if (!requireAdmin()) return { error: 'Not authorized. Admin sign-in required.' };
       var logs = allLogs().slice().sort(function (a, b) { return new Date(b.ts) - new Date(a.ts); });
       return { logs: logs.slice(0, limit || 300) };
     },
     // All mutations below verify admin session AND record an admin_action event.
     adminUpdateInfo: function (id, fields, note) {
+      if (remote()) return R.adminUpdateInfo(id, fields, note);
       var admin = requireAdmin();
       if (!admin) return { error: 'Not authorized. Admin sign-in required.' };
       var biz = allBusinesses().find(function (b) { return b.id === id; });
@@ -261,6 +564,7 @@
       return res.error ? res : { business: biz };
     },
     adminExtendTrial: function (id, extraDays) {
+      if (remote()) return R.adminExtendTrial(id, extraDays);
       var admin = requireAdmin();
       if (!admin) return { error: 'Not authorized. Admin sign-in required.' };
       extraDays = Math.max(1, Math.min(365, Number(extraDays) || 0));
@@ -277,6 +581,7 @@
       return res.error ? res : { business: biz };
     },
     adminSetSubscription: function (id, active) {
+      if (remote()) return R.adminSetSubscription(id, active);
       var admin = requireAdmin();
       if (!admin) return { error: 'Not authorized. Admin sign-in required.' };
       var biz = allBusinesses().find(function (b) { return b.id === id; });
@@ -288,6 +593,7 @@
       return res.error ? res : { business: biz };
     },
     adminSetSuspended: function (id, suspended) {
+      if (remote()) return R.adminSetSuspended(id, suspended);
       var admin = requireAdmin();
       if (!admin) return { error: 'Not authorized. Admin sign-in required.' };
       var biz = allBusinesses().find(function (b) { return b.id === id; });
@@ -298,6 +604,7 @@
       return res.error ? res : { business: biz };
     },
     adminUnpublish: function (id) {
+      if (remote()) return R.adminUnpublish(id);
       var admin = requireAdmin();
       if (!admin) return { error: 'Not authorized. Admin sign-in required.' };
       var biz = allBusinesses().find(function (b) { return b.id === id; });
@@ -308,6 +615,7 @@
       return res.error ? res : { business: biz };
     },
     adminDeleteBusiness: function (id) {
+      if (remote()) return R.adminDeleteBusiness(id);
       var admin = requireAdmin();
       if (!admin) return { error: 'Not authorized. Admin sign-in required.' };
       var biz = allBusinesses().find(function (b) { return b.id === id; });
@@ -316,7 +624,10 @@
       logEvent('admin_action', { actor: 'admin', actorName: admin.phone, businessId: id, businessName: biz.name, ownerId: biz.ownerId, details: 'PERMANENTLY DELETED business and all its data' });
       return { deleted: true };
     },
-    logEvent: function (type, opts) { return logEvent(type, opts); } // owner flows log their own actions
+    logEvent: function (type, opts) {
+      if (remote()) return R.logEvent(type, opts);
+      return Promise.resolve(logEvent(type, opts));
+    } // owner flows log their own actions
   };
 
   // ---- Media pipeline (orientation fix, WebP + sizes, blur placeholder).
@@ -485,6 +796,28 @@
     return Promise.all(jobs).then(function () { return clone; });
   }
   api.media = {
+    dataURLtoBlob: dataURLtoBlob,
+    storagePathsOf: storagePathsOf,
+    uploadImageRemote: function (file, maxFull, uid, tk) {
+      // Same orientation/WebP/resize pipeline as local; the encoded full-size
+      // image is what gets uploaded (thumb stays a local preview).
+      return api.media.processImage(file, { maxFull: maxFull }).then(function (o) {
+        return BizDb.storageUpload(uid, BizDb.dataURLtoBlob(o.full), o.type, tk).then(function (url) {
+          return { src: url };
+        });
+      });
+    },
+    uploadVideoRemote: function (file, uid, tk) {
+      if (!file || !/^video\//.test(file.type || '')) return Promise.reject(new Error('Unsupported video type.'));
+      if (file.size > 10 * 1024 * 1024) return Promise.reject(new Error('Video is too large (max 10 MB in this demo).'));
+      return BizDb.storageUpload(uid, file, file.type, tk).then(function (url) { return url; });
+    },
+    dropStorageRef: function (ref, tk) {
+      if (!global.BizDb) return Promise.resolve(false);
+      var p = BizDb.storagePathFromUrl(typeof ref === 'string' ? ref : (ref && ref.src));
+      if (!p) return Promise.resolve(false);
+      return BizDb.storageRemove(p, tk).catch(function () { return false; });
+    },
     supportsWebp: supportsWebp,
     idbSupported: function () { return idbSupported; },
     idbPut: idbPut, idbGet: idbGet, idbDelete: idbDelete,
@@ -568,6 +901,7 @@
 
   // ---- Demo seed (sample pages so visitors + admins see a live example) ----
   api.seedDemo = function () {
+    if (remote()) return;
     var now = Date.now();
     var D = 86400000;
     // Curated demo photography (verified Unsplash CDN URLs).

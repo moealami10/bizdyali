@@ -22,12 +22,13 @@
 
   // ---------- Gate ----------
   function refreshGate() {
-    var admin = BizDyali.currentAdmin();
-    $('gateView').hidden = !!admin;
-    $('adminApp').hidden = !admin;
-    $('adminLogout').hidden = !admin;
-    $('adminWho').textContent = admin ? admin.phone + ' • ' : '';
-    if (!admin) { $('loginBox').hidden = false; } else { loadAll(); }
+    Promise.resolve(BizDyali.currentAdmin()).then(function (admin) {
+      $('gateView').hidden = !!admin;
+      $('adminApp').hidden = !admin;
+      $('adminLogout').hidden = !admin;
+      $('adminWho').textContent = admin ? (admin.phone || '') + ' • ' : '';
+      if (!admin) { $('loginBox').hidden = false; } else { loadAll(); }
+    });
   }
 
   $('adminLogout').addEventListener('click', function () { BizDyali.adminLogout(); selectedId = null; refreshGate(); });
@@ -45,18 +46,22 @@
 
   function loadAll() {
     hideMsgs();
-    var r = BizDyali.adminAllBusinesses();
-    if (r.error) { showErr(r.error); return; }
-    allBiz = r.businesses;
-    allBiz.forEach(function (b) { BizDyali.checkAndLogExpiry(b); }); // record any fresh expiries
-    renderStats(); renderTable(); renderTrials(); renderLogs();
-    if (selectedId) openDetail(selectedId, true);
+    Promise.resolve(BizDyali.adminAllBusinesses()).then(function (r) {
+      if (r.error) { showErr(r.error); return; }
+      allBiz = r.businesses;
+      allBiz.forEach(function (b) { BizDyali.checkAndLogExpiry(b); }); // record any fresh expiries
+      renderStats(); renderTable(); renderTrials(); renderLogs();
+      if (selectedId) openDetail(selectedId, true);
+    }).catch(function (e) { showErr((e && e.message) || 'Error'); });
   }
   $('refreshBtn').addEventListener('click', loadAll);
 
   // ---------- Overview ----------
   function renderStats() {
-    var r = BizDyali.adminStats();
+    renderStatsAsync();
+  }
+  function renderStatsAsync() {
+    Promise.resolve(BizDyali.adminStats()).then(function (r) {
     if (r.error) { showErr(r.error); return; }
     var s = r.stats;
     var cards = [
@@ -72,6 +77,7 @@
     $('statGrid').innerHTML = cards.map(function (c) {
       return '<div class="stat ' + c[2] + '"><b>' + s[c[0]] + '</b><span>' + c[1] + '</span></div>';
     }).join('');
+    }).catch(function (e) { showErr((e && e.message) || 'Error'); });
   }
 
   // ---------- Business list ----------
@@ -194,55 +200,62 @@
       fields[k] = $('e_' + k).value.trim();
     });
     fields.offeringType = $('e_offering').value;
-    var r = BizDyali.adminUpdateInfo(selectedId, fields, 'Edited via admin dashboard');
-    if (r.error) return showErr(r.error);
-    showOk('Business information updated ✓');
-    loadAll();
+    Promise.resolve(BizDyali.adminUpdateInfo(selectedId, fields, 'Edited via admin dashboard')).then(function (r) {
+      if (r.error) return showErr(r.error);
+      showOk('Business information updated ✓');
+      loadAll();
+    }).catch(function (er) { showErr((er && er.message) || 'Error'); });
   });
   $('extendBtn').addEventListener('click', function () {
     if (!selectedId) return;
-    var r = BizDyali.adminExtendTrial(selectedId, $('extendDays').value);
-    if (r.error) return showErr(r.error);
-    showOk('Trial extended — now ends ' + BizDyali.fmtDate(r.business.trialEnd) + ' ✓');
-    loadAll();
+    Promise.resolve(BizDyali.adminExtendTrial(selectedId, $('extendDays').value)).then(function (r) {
+      if (r.error) return showErr(r.error);
+      showOk('Trial extended — now ends ' + BizDyali.fmtDate(r.business.trialEnd) + ' ✓');
+      loadAll();
+    }).catch(function (er) { showErr((er && er.message) || 'Error'); });
   });
   $('subOnBtn').addEventListener('click', function () {
     if (!selectedId) return;
     if (!confirm('Mark this business as a PAID subscriber (100 MAD/month placeholder)? No payment is processed.')) return;
-    var r = BizDyali.adminSetSubscription(selectedId, true);
-    if (r.error) return showErr(r.error);
-    showOk('Marked as paid subscriber ✓');
-    loadAll();
+    Promise.resolve(BizDyali.adminSetSubscription(selectedId, true)).then(function (r) {
+      if (r.error) return showErr(r.error);
+      showOk('Marked as paid subscriber ✓');
+      loadAll();
+    }).catch(function (er) { showErr((er && er.message) || 'Error'); });
   });
   $('subOffBtn').addEventListener('click', function () {
     if (!selectedId) return;
-    var r = BizDyali.adminSetSubscription(selectedId, false);
-    if (r.error) return showErr(r.error);
-    showOk('Subscription removed ✓');
-    loadAll();
+    Promise.resolve(BizDyali.adminSetSubscription(selectedId, false)).then(function (r) {
+      if (r.error) return showErr(r.error);
+      showOk('Subscription removed ✓');
+      loadAll();
+    }).catch(function (er) { showErr((er && er.message) || 'Error'); });
   });
   $('suspendBtn').addEventListener('click', function () {
     if (!selectedId) return;
     if (!confirm('Disable the public page? Customers will see a “paused” notice. All data is kept.')) return;
-    var r = BizDyali.adminSetSuspended(selectedId, true);
-    if (r.error) return showErr(r.error);
-    showOk('Public page disabled ✓');
-    loadAll();
+    Promise.resolve(BizDyali.adminSetSuspended(selectedId, true)).then(function (r) {
+      if (r.error) return showErr(r.error);
+      showOk('Public page disabled ✓');
+      loadAll();
+    }).catch(function (er) { showErr((er && er.message) || 'Error'); });
   });
   $('unsuspendBtn').addEventListener('click', function () {
     if (!selectedId) return;
-    var r = BizDyali.adminSetSuspended(selectedId, false);
-    if (r.error) return showErr(r.error);
-    showOk('Public page re-enabled ✓');
-    loadAll();
+    Promise.resolve(BizDyali.adminSetSuspended(selectedId, false)).then(function (r) {
+      if (r.error) return showErr(r.error);
+      showOk('Public page re-enabled ✓');
+      loadAll();
+    }).catch(function (er) { showErr((er && er.message) || 'Error'); });
   });
   $('unpublishBtn').addEventListener('click', function () {
     if (!selectedId) return;
     if (!confirm('Unpublish this page back to draft? It will no longer be reachable by customers.')) return;
-    var r = BizDyali.adminUnpublish(selectedId);
-    if (r.error) return showErr(r.error);
-    showOk('Page unpublished (draft) ✓');
-    loadAll();
+    Promise.resolve(BizDyali.adminUnpublish(selectedId)).then(function (r) {
+      if (r.error) return showErr(r.error);
+      showOk('Page unpublished (draft) ✓');
+      loadAll();
+    }).catch(function (er) { showErr((er && er.message) || 'Error'); });
   });
   $('deleteBizBtn').addEventListener('click', function () {
     if (!selectedId) return;
@@ -251,12 +264,13 @@
     if (!confirm('Step 1 of 2: permanently DELETE "' + b.name + '" and ALL its data? This cannot be undone.')) return;
     var typed = prompt('Step 2 of 2: type the business name exactly to confirm deletion:\n\n' + b.name);
     if (typed !== b.name) { showErr('Deletion cancelled — name did not match. Nothing was deleted.'); return; }
-    var r = BizDyali.adminDeleteBusiness(selectedId);
-    if (r.error) return showErr(r.error);
-    selectedId = null;
-    $('bizDetail').hidden = true;
-    showOk('Business permanently deleted. The action was recorded in the activity log.');
-    loadAll();
+    Promise.resolve(BizDyali.adminDeleteBusiness(selectedId)).then(function (r) {
+      if (r.error) return showErr(r.error);
+      selectedId = null;
+      $('bizDetail').hidden = true;
+      showOk('Business permanently deleted. The action was recorded in the activity log.');
+      loadAll();
+    }).catch(function (er) { showErr((er && er.message) || 'Error'); });
   });
 
   // ---------- Trials tab ----------
@@ -291,7 +305,7 @@
 
   // ---------- Activity log ----------
   function renderLogs() {
-    var r = BizDyali.adminGetLogs(400);
+    Promise.resolve(BizDyali.adminGetLogs(400)).then(function (r) {
     if (r.error) { showErr(r.error); return; }
     var type = $('logType').value;
     var q = $('logSearch').value.trim().toLowerCase();
@@ -307,6 +321,7 @@
         '<td><small>' + esc(l.businessName || '—') + '</small></td>' +
         '<td><small>' + esc(l.details || '') + '</small></td></tr>';
     }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted)">No events yet.</td></tr>';
+    }).catch(function (e) { showErr((e && e.message) || 'Error'); });
   }
   $('logType').addEventListener('change', renderLogs);
   $('logSearch').addEventListener('input', renderLogs);

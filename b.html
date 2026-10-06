@@ -21,6 +21,8 @@
     <div id="pubMount"></div>
   </main>
 
+  <script src="js/config.js"></script>
+  <script src="js/db.js"></script>
   <script src="js/store.js"></script>
   <script src="js/icons.js"></script>
   <script src="js/theme.js"></script>
@@ -28,6 +30,7 @@
   <script src="js/render.js"></script>
   <script>
   (function () {
+    function isRemote() { return BizDyali.isRemote(); }
     BizDyali.seedDemo();
     var params = new URLSearchParams(location.search);
     var slug = params.get('slug') || '';
@@ -40,14 +43,7 @@
     // not-found, unavailable). Business pages render their own chrome header.
     var brandBar = '<div class="container topnav"><a href="index.html" class="logo"><span class="logo-mark" aria-hidden="true"><svg viewBox="0 0 36 36" width="26" height="26"><ellipse cx="18" cy="7" rx="12" ry="4" fill="#fff" opacity=".18"/><text x="18" y="24.5" text-anchor="middle" font-family="Fraunces,Georgia,\'Times New Roman\',serif" font-weight="700" font-size="21" fill="#FFF8E8">B</text><path d="M10 27.4 Q18 29.8 26 26.6" fill="none" stroke="#E7B23C" stroke-width="1.8" stroke-linecap="round"/><circle cx="26.9" cy="25.9" r="1.3" fill="#E7B23C"/></svg></span><span class="logo-word">BizDyali</span></a><div class="links"><a href="index.html">Create your free page →</a></div></div>';
 
-    if (!slug) {
-      // No slug: show live pages directory (demo of independent business data).
-      var pages = [];
-      try { pages = JSON.parse(localStorage.getItem('bizdyali_businesses_v1') || '[]'); } catch (e) {}
-      pages = pages.filter(function (b) {
-        var st = BizDyali.trialState(b).status;
-        return b.published && (st === 'trial' || st === 'subscribed');
-      });
+    function directoryList(pages) {
       mount.innerHTML = brandBar + '<h1 class="page-title">Businesses on BizDyali</h1>' +
         '<p class="page-sub">Live public pages. <a href="auth.html">Create your free page</a> — 14 days free.</p>' +
         (pages.length ? '<div class="item-list">' + pages.map(function (b) {
@@ -56,34 +52,71 @@
             '<div><b>' + esc(b.name) + '</b><br /><small>' + esc(b.category || '') + (b.city ? ' • ' + esc(b.city) : '') + '</small></div></a>';
         }).join('') + '</div>' : '<div class="empty">No live pages yet — yours could be the first.</div>');
       document.title = 'Businesses — BizDyali';
-      return;
     }
-
-    var biz = BizDyali.getBySlug(slug);
-    if (!biz) {
+    function notFound() {
       mount.innerHTML = brandBar + '<div class="card expired-card"><h1 class="page-title">Page not found</h1>' +
         '<p class="page-sub">This BizDyali link doesn’t exist or was never published.</p>' +
         '<div class="btn-row" style="justify-content:center"><a class="btn btn-primary" href="auth.html">Create Your Free Business Page</a></div></div>';
-      return;
     }
-    document.title = biz.name + ' — BizDyali';
-
-    var st = BizDyali.trialState(biz);
-    BizDyali.checkAndLogExpiry(biz); // system records the expiry the first time it is seen
-    if ((st.status === 'expired' || st.status === 'suspended') && !isPreview) {
-      // Public page unavailable after trial or when disabled — details hidden, data stays saved.
-      var isSusp = st.status === 'suspended';
+    function unavailable(name) {
       mount.innerHTML = brandBar + '<div class="card expired-card"><p class="kicker">BizDyali</p>' +
-        '<h1 class="page-title">' + esc(biz.name) + '</h1>' +
+        '<h1 class="page-title">' + esc(name || 'This page') + '</h1>' +
         '<p class="page-sub">This page is temporarily unavailable. Please check back soon.</p>' +
         '<div class="btn-row" style="justify-content:center;margin-top:1rem"><a class="btn btn-primary" href="auth.html">Create Your Free Business Page</a></div></div>';
+    }
+    function renderLive(biz) {
+      document.title = biz.name + ' — BizDyali';
+      BizDyali.media.resolveBusiness(biz).then(function (ready) {
+        BizRender.renderPublicPage(ready, mount, { chrome: true, seo: true });
+      }, function () {
+        BizRender.renderPublicPage(biz, mount, { chrome: true, seo: true });
+      });
+    }
+
+    if (!slug) {
+      // No slug: live pages directory. Server filters to live pages remotely.
+      if (isRemote()) {
+        BizDb.publicDirectory().then(directoryList, function () { directoryList([]); });
+        return;
+      }
+      var pages = [];
+      try { pages = JSON.parse(localStorage.getItem('bizdyali_businesses_v1') || '[]'); } catch (e) {}
+      pages = pages.filter(function (b) {
+        var st = BizDyali.trialState(b).status;
+        return b.published && (st === 'trial' || st === 'subscribed');
+      });
+      directoryList(pages);
       return;
     }
-    BizDyali.media.resolveBusiness(biz).then(function (ready) {
-      BizRender.renderPublicPage(ready, mount, { chrome: true, seo: true });
-    }, function () {
-      BizRender.renderPublicPage(biz, mount, { chrome: true, seo: true });
-    });
+
+    if (isRemote()) {
+      BizDb.publicBusiness(slug).then(function (j) {
+        if (!j) { notFound(); return; }
+        if (j.status) {
+          if (isPreview && j.name) {
+            // Owner preview of an unavailable page needs full data, which the
+            // public surface intentionally withholds: explain instead of leaking.
+            unavailable(j.name);
+            return;
+          }
+          unavailable(j.name);
+          return;
+        }
+        renderLive(BizDb.toBiz(j));
+      }, function () { notFound(); });
+      return;
+    }
+    Promise.resolve(BizDyali.getBySlug(slug)).then(function (biz) {
+      if (!biz) { notFound(); return; }
+      document.title = biz.name + ' — BizDyali';
+      var st = BizDyali.trialState(biz);
+      BizDyali.checkAndLogExpiry(biz); // system records the expiry the first time it is seen
+      if ((st.status === 'expired' || st.status === 'suspended') && !isPreview) {
+        unavailable(biz.name);
+        return;
+      }
+      renderLive(biz);
+    }, function () { notFound(); });
   })();
   </script>
 </body>

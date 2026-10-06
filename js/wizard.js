@@ -10,8 +10,34 @@
   document.body.style.visibility = '';
   document.getElementById('whoAmI').textContent = (user.name || user.phone || '') + ' • ';
 
-  var draft = BizDyali.loadDraft(user.id) || BizDyali.blankBusiness(user.id);
+  function isRemote() { return BizDyali.isRemote(); }
+  function dropRemote(ref) {
+    if (!isRemote() || !window.BizAuth) return;
+    BizAuth.accessToken().then(function (tk) {
+      if (tk) BizDyali.media.dropStorageRef(ref, tk);
+    }).catch(function () {});
+  }
+  function uploadImage(file, maxFull, done) {
+    if (!isRemote()) {
+      BizDyali.media.fileToImageDataURL(file, maxFull).then(done).catch(function (err2) { showErr(err2.message); });
+      return;
+    }
+    BizAuth.accessToken().then(function (tk) {
+      return BizDyali.media.uploadImageRemote(file, maxFull, user.id, tk);
+    }).then(done).catch(function (err2) { showErr(err2.message); });
+  }
+
+  function psrc(p) { return typeof p === 'string' ? p : ((p && p.src) || ''); }
+
+  var draft = BizDyali.blankBusiness(user.id);
   draft.ownerId = user.id;
+  var serverDraftNewer = false;
+  Promise.resolve(BizDyali.loadDraft(user.id)).then(function (d) {
+    if (d) { draft = d; draft.ownerId = user.id; }
+    if (isRemote() && BizDyali.draftServerWon && BizDyali.draftServerWon()) serverDraftNewer = true;
+    bootForm();
+  });
+  function bootForm() {
   // Prefill business name from homepage CTA (?biz=...), if draft is still empty.
   try {
     var prefill = new URLSearchParams(location.search).get('biz');
@@ -35,8 +61,17 @@
   function touchSave() {
     $('saveState').textContent = 'كتحفظ…';
     collectStep(step);
-    BizDyali.saveDraft(user.id, draft);
-    $('saveState').textContent = 'تحفظات ✓';
+    return Promise.resolve(BizDyali.saveDraft(user.id, draft)).then(function (res) {
+      if (res && res.conflict && res.server) {
+        draft = res.server; draft.ownerId = user.id;
+        fill(); fillDesign();
+        showErr('الصفحة تبدلات فبلاصة خرى. حملنا النسخة الجديدة.');
+        $('saveState').textContent = 'تحفظات ✓';
+        return res;
+      }
+      $('saveState').textContent = 'تحفظات ✓';
+      return res;
+    });
   }
 
   // ---- Fill form from draft ----
@@ -52,8 +87,8 @@
     $('f_facebook').value = draft.facebook || '';
     $('f_instagram').value = draft.instagram || '';
     $('f_lang').value = draft.lang || '';
-    if (draft.logo) { $('logoPreview').src = draft.logo; $('logoPreview').hidden = false; }
-    if (draft.cover) { $('coverPreview').src = draft.cover; $('coverPreview').hidden = false; }
+    if (draft.logo) { $('logoPreview').src = psrc(draft.logo); $('logoPreview').hidden = false; }
+    if (draft.cover) { $('coverPreview').src = psrc(draft.cover); $('coverPreview').hidden = false; }
     refreshPills(); renderItems();
     $('f_slug').value = BizDyali.slugify(draft.name || 'my-business');
   }
@@ -163,7 +198,7 @@
       collectStep(step);
     } else { collectStep(step); }
     step = n;
-    BizDyali.saveDraft(user.id, draft);
+    touchSave();
     document.querySelectorAll('.wizard-step').forEach(function (s) {
       s.classList.toggle('active', Number(s.dataset.step) === step);
     });
@@ -189,17 +224,19 @@
   // ---- Step 2: branding uploads ----
   $('f_logo').addEventListener('change', function (e) {
     var f = e.target.files[0]; if (!f) return;
-    BizDyali.media.fileToImageDataURL(f, 600).then(function (url) {
+    dropRemote(draft.logo);
+    uploadImage(f, 600, function (url) {
       draft.logo = url; touchSave();
-      $('logoPreview').src = url; $('logoPreview').hidden = false;
-    }).catch(function (err2) { showErr(err2.message); });
+      $('logoPreview').src = typeof url === 'string' ? url : url.src; $('logoPreview').hidden = false;
+    });
   });
   $('f_cover').addEventListener('change', function (e) {
     var f = e.target.files[0]; if (!f) return;
-    BizDyali.media.fileToImageDataURL(f, 1400).then(function (url) {
+    dropRemote(draft.cover);
+    uploadImage(f, 1400, function (url) {
       draft.cover = url; touchSave();
-      $('coverPreview').src = url; $('coverPreview').hidden = false;
-    }).catch(function (err2) { showErr(err2.message); });
+      $('coverPreview').src = typeof url === 'string' ? url : url.src; $('coverPreview').hidden = false;
+    });
   });
 
   // ---- Step 3: offering type + items ----
@@ -233,7 +270,7 @@
       var li = document.createElement('li');
       li.className = 'item-row';
       var thumb = (it.photos && it.photos[0])
-        ? '<div class="item-thumb" style="background-image:url(\'' + it.photos[0] + '\')"></div>'
+        ? '<div class="item-thumb" style="background-image:url(\'' + psrc(it.photos[0]) + '\')"></div>'
         : '<div class="item-thumb">' + BizRender.esc((it.name || '?').charAt(0).toUpperCase()) + '</div>';
       li.innerHTML = thumb + '<div style="min-width:0"><span class="item-kind">' + it.kind + '</span> <b>' +
         BizRender.esc(it.name) + '</b><small>' +
@@ -246,6 +283,8 @@
        ['✏️', 'Edit', function () { openEditor(it.kind, it.id); }],
        ['🗑️', 'Delete', function () {
           if (confirm('Delete "' + it.name + '"?')) {
+            (it.photos || []).forEach(function (ph) { dropRemote(ph && ph.src ? ph.src : ph); });
+            if (it.video) dropRemote(it.video);
             draft.items = draft.items.filter(function (x) { return x.id !== it.id; });
             renumber(); touchSave(); renderItems();
           }
@@ -299,9 +338,9 @@
     var t = $('itPhotoThumbs'); t.innerHTML = '';
     editorPhotos.forEach(function (p, i) {
       var d = document.createElement('div'); d.className = 'thumb-x';
-      d.innerHTML = '<img src="' + p + '" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--line)" />';
+      d.innerHTML = '<img src="' + psrc(p) + '" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--line)" />';
       var x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.title = 'Remove photo';
-      x.addEventListener('click', function () { editorPhotos.splice(i, 1); renderEditorMedia(); });
+      x.addEventListener('click', function () { var gone = editorPhotos.splice(i, 1)[0]; dropRemote(gone && gone.src ? gone.src : gone); renderEditorMedia(); });
       d.appendChild(x); t.appendChild(d);
     });
     $('itVideoHint').textContent = editorVideo ? 'Video attached ✓ (replace by choosing another file)' : 'No video attached.';
@@ -311,6 +350,18 @@
   $('itCancel').addEventListener('click', function () { $('itemEditor').hidden = true; editingItemId = null; });
   $('it_photos').addEventListener('change', function (e) {
     var files = Array.prototype.slice.call(e.target.files || []).slice(0, 4 - editorPhotos.length);
+    if (isRemote()) {
+      if (!window.BizAuth) { showErr('ما كايناش الكونكسيون.'); e.target.value = ''; return; }
+      BizAuth.accessToken().then(function (tk) {
+        (function next() {
+          var f = files.shift(); if (!f) { e.target.value = ''; return; }
+          BizDyali.media.uploadImageRemote(f, 900, user.id, tk).then(function (ref) {
+            editorPhotos.push(ref); renderEditorMedia(); next();
+          }).catch(function (err2) { showErr(err2.message); next(); });
+        })();
+      }).catch(function () { showErr('ما كايناش الكونكسيون.'); e.target.value = ''; });
+      return;
+    }
     (function next() {
       var f = files.shift(); if (!f) { e.target.value = ''; return; }
       BizDyali.media.fileToImageDataURL(f, 900).then(function (url) {
@@ -320,6 +371,15 @@
   });
   $('it_video').addEventListener('change', function (e) {
     var f = e.target.files[0]; if (!f) return;
+    if (isRemote()) {
+      if (!window.BizAuth) { showErr('ما كايناش الكونكسيون.'); e.target.value = ''; return; }
+      BizAuth.accessToken().then(function (tk) {
+        return BizDyali.media.uploadVideoRemote(f, user.id, tk);
+      }).then(function (url) {
+        editorVideo = url; renderEditorMedia(); e.target.value = '';
+      }).catch(function (err2) { showErr(err2.message); e.target.value = ''; });
+      return;
+    }
     BizDyali.media.fileToVideoDataURL(f, 10).then(function (url) {
       editorVideo = url; renderEditorMedia(); e.target.value = '';
     }).catch(function (err2) { showErr(err2.message); e.target.value = ''; });
@@ -360,12 +420,19 @@
       return;
     }
     var slug = $('f_slug').value.trim();
-    var res = BizDyali.publishBusiness(draft, slug);
-    var pe = $('pubErr');
-    if (res.error) { pe.textContent = res.error; pe.hidden = false; return; }
-    pe.hidden = true;
-    BizDyali.clearDraft(user.id);
-    location.replace('dashboard.html?biz=' + res.business.id + '&welcome=1');
+    Promise.resolve(BizDyali.publishBusiness(draft, slug)).then(function (res) {
+      var pe = $('pubErr');
+      if (res.error) { pe.textContent = res.error; pe.hidden = false; return; }
+      pe.hidden = true;
+      try {
+        if (BizDyali.trialState(res.business).status === 'expired') {
+          sessionStorage.setItem('bizdyali_trialover', '1');
+        }
+      } catch (e) {}
+      Promise.resolve(BizDyali.clearDraft(user.id)).then(function () {
+        location.replace('dashboard.html?biz=' + res.business.id + '&welcome=1');
+      });
+    });
   });
 
   // Autosave text inputs (light)
@@ -377,7 +444,9 @@
       });
     });
 
-  fill();
-  fillDesign();
-  go(1);
+    if (serverDraftNewer) showErr('الصفحة تبدلات فبلاصة خرى. حملنا النسخة الجديدة.');
+    fill();
+    fillDesign();
+    go(1);
+  }
 })();
