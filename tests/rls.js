@@ -1,6 +1,20 @@
 /* RLS + RPC verification matrix. Plain node, zero dependencies.
- *   SUPABASE_URL=... SUPABASE_ANON_KEY=... SUPABASE_SERVICE_KEY=... [SUPABASE_JWT_SECRET=...] node tests/rls.js
+ *   SUPABASE_URL=... SUPABASE_ANON_KEY=... SUPABASE_SERVICE_KEY=... TEST_PROJECT_REF=<ref> node tests/rls.js
  * Keys come ONLY from the environment: never committed, never in browser code.
+ * TEST_PROJECT_REF is required and must match the target URL: the script
+ * aborts otherwise, so a typo can never run this matrix against production.
+ *
+ * Changed expectations (grant/trigger tightening over time):
+ * - forged owner insert: accepted-but-sanitized -> denied (RLS WITH CHECK, 403)
+ * - legit insert bodies omit owner_id (column grant excludes it; DEFAULT fills)
+ * - admin direct status PATCH: allowed -> denied (column grant); admin_set_status RPC is the path
+ * - publish trial test: byte-identical republish -> set-once + republish-noop + null-fill trio
+ * - table invisibility: 401 -> 401 or 403 (PostgREST returns 403 for missing grants)
+ * - anon storage write: 401/403 -> 400/401/403
+ * - baseBiz owner: literal 'A' -> real variable (was an FK violation)
+ * - photo URLs: arbitrary https -> canonical supabase.co public-path form
+ * - per-section users: cap/constraint sections provision dedicated owners so
+ *   the 5-row cap cannot trip neighboring assertions for the wrong reason.
  * Auth: mints HMAC test JWTs (sub=A/B/admin) when the project uses a symmetric
  * secret; or set TEST_TOKEN_A/B/ADMIN to use real sessions instead.
  * Covers: anon, user A, user B, admin — incl. INSERT paths and every
@@ -11,19 +25,23 @@ const BASE = process.env.SUPABASE_URL || '';
 const ANON = process.env.SUPABASE_ANON_KEY || '';
 const SERVICE = process.env.SUPABASE_SERVICE_KEY || '';
 if (!BASE || !ANON || !SERVICE) { console.error('Missing SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_KEY env.'); process.exit(2); }
+const WANT_REF = process.env.TEST_PROJECT_REF || '';
+const GOT_REF = (() => { const m = String(BASE).match(/^https:\/\/([^.]+)\.supabase\.co/); return m ? m[1] : ''; })();
+if (!WANT_REF || WANT_REF !== GOT_REF) { console.error('Refusing: TEST_PROJECT_REF must equal the target project ref (got "' + GOT_REF + '").'); process.exit(2); }
 let pass = 0, fail = 0;
 function t(n, cond, got) { if (cond) pass++; else { fail++; console.log('  FAIL:', n, got === undefined ? '' : JSON.stringify(got).slice(0, 200)); } }
 // Test identities: real auth users (email+password for tokens, confirmed
 // phones for the phone claim). Minted HMAC JWTs do NOT validate on projects
 // with asymmetric keys, so sessions always come from password grants here
 // (override any leg with TEST_TOKEN_A/B/ADMIN).
-const TOK = { anon: null, A: process.env.TEST_TOKEN_A || null, B: process.env.TEST_TOKEN_B || null, admin: process.env.TEST_TOKEN_ADMIN || null, svc: null };
+const TOK = { anon: null, A: process.env.TEST_TOKEN_A || null, B: process.env.TEST_TOKEN_B || null, admin: process.env.TEST_TOKEN_ADMIN || null, cap: process.env.TEST_TOKEN_CAP || null, svc: null };
 const USERS = [
   { tag: 'A', email: 'rls-a@example.com', password: 'Secret123!', phone: '15550001111', name: 'User A' },
   { tag: 'B', email: 'rls-b@example.com', password: 'Secret123!', phone: '15550002222', name: 'User B' },
   { tag: 'admin', email: 'rls-admin@example.com', password: 'Secret123!', phone: '15550003333', name: 'Admin' },
   { tag: 'nophone', email: 'rls-nophone@example.com', password: 'Secret123!', name: 'No Phone' },
-  { tag: 'plus', email: 'rls-plus@example.com', password: 'Secret123!', phone: '+15550004444', name: 'Plus' }
+  { tag: 'plus', email: 'rls-plus@example.com', password: 'Secret123!', phone: '+15550004444', name: 'Plus' },
+  { tag: 'cap', email: 'rls-cap@example.com', password: 'Secret123!', phone: '15550005555', name: 'Cap' }
 ];
 async function svcReq(path, method, body) {
   const r = await fetch(BASE + path, { method: method || 'GET',
@@ -78,6 +96,7 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   const A = ids.A || '11111111-1111-1111-1111-111111111111';
   const B = ids.B || '22222222-2222-2222-2222-222222222222';
   const AD = ids.admin || '33333333-3333-3333-3333-333333333333';
+  const CAP = ids.cap || '44444444-4444-4444-4444-444444444444';
   const profA = await svcReq('/rest/v1/profiles?select=id,phone&limit=10', 'GET');
   t('handle_new_user created profiles', JSON.stringify(profA.json).includes('15550001111'), (profA.json || []).length);
   await req('svc', '/rest/v1/admins', { method: 'POST', body: JSON.stringify([{ user_id: AD }]) });
@@ -168,6 +187,22 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   r = await rpc('A', 'publish_business', { p_slug: 'rls-nulltrial', p_data: { name: 'Null Trial', category: 'Café', description: '0123456789abcdef' } });
   t('publish: null trial filled', !!(r.json || {}).trial_end, (r.json || {}).trial_end);
 
+  // Page cap: dedicated owner publishes 5 distinct slugs, the 6th fails.
+  // (Separate user so the cap cannot trip the constraint matrix above/below
+  // for the wrong reason; all cap slugs are cleaned up with the rest.)
+  let capOk = 0;
+  for (let i = 0; i < 5; i++) {
+    const rr = await rpc('cap', 'publish_business', { p_slug: 'rls-cap-' + i,
+      p_data: { name: 'Cap ' + i, category: 'Café', description: '0123456789abcdef' } });
+    if (rr.json && rr.json.slug === 'rls-cap-' + i) capOk++;
+    newSlugs.push('rls-cap-' + i);
+  }
+  t('cap: 5 publishes succeed', capOk === 5, capOk);
+  r = await rpc('cap', 'publish_business', { p_slug: 'rls-cap-5',
+    p_data: { name: 'Cap 5', category: 'Café', description: '0123456789abcdef' } });
+  t('cap: 6th slug fails', r.status === 400 || (r.json && (r.json.code || r.json.message)), r.status);
+  newSlugs.push('rls-cap-5');
+
   r = await req('A', '/rest/v1/businesses?slug=eq.rls-a-live', { method: 'PATCH', body: JSON.stringify({ is_demo: true, subscription: 'active', trial_end: new Date(Date.now() + 999 * 86400000).toISOString() }) });
   t('owner: is_demo+billing PATCH denied', r.status === 403 || r.status === 400, r.status);
   const still = await rest('A', 'businesses', '?slug=eq.rls-a-live&select=subscription');
@@ -223,11 +258,11 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
     logo: GOOD_PHOTO, cover: GOOD_PHOTO,
     items: [{ id: 'i1', kind: 'product', name: 'P', photos: [GOOD_PHOTO], video: null }],
     theme: { accent: '#0A6B4F' }, testimonials: [], trust: [] }, patch || {});
-  async function tryInsert(slug, patch) {
-    const rr = await req('A', '/rest/v1/businesses', { method: 'POST', body: JSON.stringify(baseBiz(slug, patch)) });
+  async function tryInsert(slug, patch, who) {
+    const rr = await req(who || 'A', '/rest/v1/businesses', { method: 'POST', body: JSON.stringify(baseBiz(slug, patch)) });
     return rr.status;
   }
-  t('constraint: valid full row accepted', (await (async () => { const st = await tryInsert('rls-ok-full', {}); newSlugs.push('rls-ok-full'); return st; })()) === 201, 'valid insert');
+  t('constraint: valid full row accepted', (await (async () => { const st = await tryInsert('rls-ok-full', {}, 'cap'); newSlugs.push('rls-ok-full'); return st; })()) === 201, 'valid insert');
   const negs = [
     ['slug too short', { slug: 'x' }],
     ['slug reserved', { slug: 'admin' }],
@@ -251,7 +286,7 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   ];
   for (let i = 0; i < negs.length; i++) {
     const slug = 'rls-neg-' + i;
-    const st = await tryInsert(slug, negs[i][1]);
+    const st = await tryInsert(slug, negs[i][1], 'cap');
     t('constraint rejects: ' + negs[i][0], st >= 400, st);
   }
 
@@ -272,7 +307,7 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   t('121-char profile name rejected', r.status >= 400, r.status);
 
   // Cleanup (service role).
-  for (const slug of ['rls-a-live', 'rls-b-live', 'rls-b-expired', 'rls-b-susp', 'rls-forged', 'rls-own-raw', 'rls-ok-full'].concat(newSlugs.filter(x => x !== 'rls-ok-full')))
+  for (const slug of ['rls-a-live', 'rls-b-live', 'rls-b-expired', 'rls-b-susp', 'rls-forged', 'rls-own-raw', 'rls-ok-full', 'rls-pub1', 'rls-nulltrial', 'rls-cap-0', 'rls-cap-1', 'rls-cap-2', 'rls-cap-3', 'rls-cap-4', 'rls-cap-5'])
     await req('svc', '/rest/v1/businesses?slug=eq.' + slug, { method: 'DELETE' });
   for (const id of [A, B, AD]) {
     await req('svc', '/rest/v1/admins?user_id=eq.' + id, { method: 'DELETE' });

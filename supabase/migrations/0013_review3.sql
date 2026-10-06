@@ -34,6 +34,13 @@ begin
   if tg_op = 'INSERT' and v_count >= 5 then
     raise exception 'business limit reached';
   end if;
+  -- WHY THE ALLOWLIST BRANCHES BELOW EXIST (do not delete as "dead code"):
+  -- SECURITY DEFINER changes privileges, not current_user, so this trigger
+  -- fires identically for direct owner writes and publish_business() writes.
+  -- The column grants exclude every server-owned column, therefore any write
+  -- reaching these branches with published/trial set MUST have come through
+  -- publish_business() (the sole holder of those columns via definer rights).
+  -- Deleting the branches would make publishing impossible with no replacement.
   if tg_op = 'INSERT' and new.published is true and new.trial_start is not null then
     -- First-publish write. Unreachable directly (grants exclude these columns),
     -- so only publish_business() gets here. Normalize defensively.
