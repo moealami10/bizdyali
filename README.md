@@ -56,5 +56,5 @@ Restricted to a single allowlisted owner email, with memory-only sessions
 
 - Data is per-browser; production needs a backend (also for real auth enforcement).
 - Demo content ships seeded; large videos/photos count against ~5MB browser storage.
-- Service CTA WhatsApp number is a placeholder (`TODO` in `index.html`).
+- Service CTA WhatsApp contact is the owner's real number (+212 631-522155).
 - A real-device iOS check (safe-area, toolbar dynamics) is still recommended.
