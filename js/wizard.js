@@ -31,12 +31,14 @@
 
   var draft = BizDyali.blankBusiness(user.id);
   draft.ownerId = user.id;
-  var serverDraftNewer = false;
-  Promise.resolve(BizDyali.loadDraft(user.id)).then(function (d) {
-    if (d) { draft = d; draft.ownerId = user.id; }
-    if (isRemote() && BizDyali.draftServerWon && BizDyali.draftServerWon()) serverDraftNewer = true;
-    bootForm();
-  });
+  var hadLocalDraft = false;
+  if (isRemote()) {
+    // Boot instantly from the local buffer so typing never races the
+    // network; reconcile with the server copy when it arrives.
+    var localFirst = BizDyali.loadDraftLocal ? BizDyali.loadDraftLocal(user.id) : null;
+    if (localFirst) { draft = localFirst; draft.ownerId = user.id; hadLocalDraft = true; }
+  }
+  bootForm();
   function bootForm() {
   // Prefill business name from homepage CTA (?biz=...), if draft is still empty.
   try {
@@ -444,9 +446,23 @@
       });
     });
 
-    if (serverDraftNewer) showErr('الصفحة تبدلات فبلاصة خرى. حملنا النسخة الجديدة.');
     fill();
     fillDesign();
     go(1);
+    serverReconcile();
+    function serverReconcile() {
+        if (!isRemote()) return;
+        Promise.resolve(BizDyali.loadDraft(user.id)).then(function (d) {
+          var won = BizDyali.draftServerWon && BizDyali.draftServerWon();
+          if (won && d) {
+            draft = d; draft.ownerId = user.id;
+            fill(); fillDesign(); go(step);
+            showErr('الصفحة تبدلات فبلاصة خرى. حملنا النسخة الجديدة.');
+          } else if (d && !hadLocalDraft) {
+            draft = d; draft.ownerId = user.id;
+            fill(); fillDesign(); go(step);
+          }
+        }).catch(function () {});
+      }
   }
 })();

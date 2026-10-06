@@ -146,7 +146,7 @@
           order: it.order, section: it.section, badge: it.badge, duration: it.duration
         };
       }),
-      theme: biz.theme || {}, hoursWeek: biz.hoursWeek || null,
+      theme: biz.theme || {}, hoursWeek: biz.hoursWeek || {},
       testimonials: biz.testimonials || [], trust: biz.trust || []
     };
   }

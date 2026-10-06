@@ -150,6 +150,13 @@
     return Promise.reject(new Error('signed out'));
   }
   function draftBufKey(ownerId) { return 'bizdyali_draft_' + ownerId + '_v1'; }
+  function readDraftBuffer(ownerId) {
+    try {
+      var raw = JSON.parse(localStorage.getItem(draftBufKey(ownerId)) || 'null');
+      if (!raw) return null;
+      return raw.data !== undefined ? raw : { data: raw, serverTs: null };
+    } catch (e) { return null; }
+  }
   var draftServerTs = {}; // ownerId -> last known server drafts.updated_at
   var draftServerWon = false;
   function storagePathsOf(biz) {
@@ -186,16 +193,29 @@
       }).then(function (r) { return BizDb.toBiz((r.json || [])[0] || null); });
     },
     saveBusiness: function (biz) {
-      var tk, oldPaths = [];
+      var tk, oldPaths = [], exists = false;
       return token().then(function (t) {
         tk = t;
         return BizDb.rest('businesses', '?id=eq.' + encodeURIComponent(biz.id) + '&select=logo,cover,items&limit=1', {}, t);
       }).then(function (r) {
         var old = BizDb.toBiz((r.json || [])[0] || null);
         oldPaths = old ? storagePathsOf(old) : [];
-        return BizDb.rest('businesses', '', { method: 'POST', body: JSON.stringify(BizDb.toRow(biz)), prefer: 'resolution=merge-duplicates,return=representation' }, tk);
+        exists = !!old;
+        var row = BizDb.toRow(biz);
+        if (old) {
+          delete row.id; // never attempt to rewrite the primary key
+          return BizDb.rest('businesses', '?id=eq.' + encodeURIComponent(biz.id), { method: 'PATCH', body: JSON.stringify(row) }, tk);
+        }
+        return BizDb.rest('businesses', '', { method: 'POST', body: JSON.stringify(row) }, tk);
       }).then(function (r2) {
-        var saved = BizDb.toBiz((r2.json || [])[0] || null);
+        if (r2.status === 409 && !exists) {
+          var retry = BizDb.toRow(biz);
+          delete retry.id;
+          return BizDb.rest('businesses', '?id=eq.' + encodeURIComponent(biz.id), { method: 'PATCH', body: JSON.stringify(retry) }, tk);
+        }
+        return r2;
+      }).then(function (r2) {
+        var saved = (r2.json && r2.json.id) ? BizDb.toBiz(Array.isArray(r2.json) ? r2.json[0] : r2.json) : biz;
         var fresh = {};
         storagePathsOf(saved).forEach(function (p) { fresh[p] = true; });
         dropStoragePaths(oldPaths.filter(function (p) { return !fresh[p]; }), tk);
@@ -292,7 +312,7 @@
         if (!admin) return { error: 'Not authorized. Admin sign-in required.' };
         return token();
       }).then(function (t) {
-        if (!t || !t.phone) return t;
+        if (!t) return { error: 'signed out' };
         return BizDb.rest('businesses', '?select=*&order=created_at.desc', {}, t);
       }).then(function (r) {
         if (!r.json) return r;
@@ -328,7 +348,7 @@
         if (!admin) return { error: 'Not authorized. Admin sign-in required.' };
         return token();
       }).then(function (t) {
-        if (!t || !t.phone) return t;
+        if (!t) return { error: 'signed out' };
         return BizDb.rest('activity_log', '?select=*&order=ts.desc&limit=' + (limit || 300), {}, t);
       }).then(function (r) {
         if (!r.json) return r;
@@ -344,7 +364,7 @@
         if (!admin) return { error: 'Not authorized. Admin sign-in required.' };
         return token();
       }).then(function (t) {
-        if (!t || !t.phone) return t;
+        if (!t) return { error: 'signed out' };
         tk = t;
         var body = {};
         ['name', 'category', 'description', 'phone', 'whatsapp', 'address', 'city', 'hours', 'facebook', 'instagram'].forEach(function (k) {
@@ -360,7 +380,7 @@
         if (!admin) return { error: 'Not authorized. Admin sign-in required.' };
         return token();
       }).then(function (t) {
-        if (!t || !t.phone) return t;
+        if (!t) return { error: 'signed out' };
         return BizDb.rpc('admin_set_status', Object.assign({ p_business_id: id, p_trial_end: null, p_subscription: null, p_suspended: null, p_published: null }, args || {}), t);
       }).then(function (r) { return { business: BizDb.toBiz(r.json) }; },
         function (e) { return { error: (e && e.message) || 'request failed' }; });
@@ -394,7 +414,7 @@
         paths = storagePathsOf(biz);
         return token();
       }).then(function (t) {
-        if (!t || !t.phone) return t;
+        if (!t) return { error: 'signed out' };
         tk = t;
         return BizDb.rest('businesses', '?id=eq.' + encodeURIComponent(id), { method: 'DELETE' }, tk);
       }).then(function () { dropStoragePaths(paths, tk); return { deleted: true }; });

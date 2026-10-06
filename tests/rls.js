@@ -259,7 +259,8 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   t('admin: reads profiles', Array.isArray(r.json) && r.json.length >= 3, (r.json || []).length);
 
   // Constraint matrix: one positive, one negative per rule (A inserts, A reads back).
-  const GOOD_PHOTO = 'https://xyz123abc.supabase.co/storage/v1/object/public/business-media/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222.jpg';
+  const MEDIA_HOST = new URL(BASE).hostname;
+  const GOOD_PHOTO = 'https://' + MEDIA_HOST + '/storage/v1/object/public/business-media/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222.jpg';
   const baseBiz = (slug, patch) => Object.assign({ slug, name: 'Constraint Biz', category: 'Café',
     description: '0123456789abcdef', phone: '+1000', whatsapp: '+1000', city: 'X', hours: 'h',
     logo: GOOD_PHOTO, cover: GOOD_PHOTO,
@@ -283,7 +284,7 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
     ['item 5 photos', { items: [{ id: 'i1', kind: 'product', name: 'P', photos: [GOOD_PHOTO, GOOD_PHOTO, GOOD_PHOTO, GOOD_PHOTO, GOOD_PHOTO] }] }],
     ['item photo scheme', { items: [{ id: 'i1', kind: 'product', name: 'P', photos: ['https://evil.com/x.jpg'] }] }],
     ['item video scheme', { items: [{ id: 'i1', kind: 'product', name: 'P', video: 'https://evil.com/v.mp4' }] }],
-    ['item video ext', { items: [{ id: 'i1', kind: 'product', name: 'P', video: 'https://xyz123abc.supabase.co/storage/v1/object/public/business-media/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222.mov' }] }],
+    ['item video ext', { items: [{ id: 'i1', kind: 'product', name: 'P', video: 'https://' + MEDIA_HOST + '/storage/v1/object/public/business-media/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222.mov' }] }],
     ['evil query-smuggle', { logo: 'https://evil.com/x.png?/storage/v1/object/public/business-media/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222.jpg' }],
     ['evil host canonical path', { logo: 'https://evil.com/storage/v1/object/public/business-media/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222.jpg' }],
     ['accent malformed', { theme: { accent: 'red' } }],
@@ -308,9 +309,9 @@ const rpc = (who, fn, body) => req(who, '/rest/v1/rpc/' + fn, { method: 'POST', 
   r = await svcReq('/rest/v1/profiles?select=phone&id=eq.' + ids.plus, 'GET');
   t('plus phone stripped', ((r.json || [])[0] || {}).phone === '15550004444', r.json);
   // Null item kind rejected; overlong profile name rejected.
-  r = await req('A', '/rest/v1/businesses', { method: 'POST', body: JSON.stringify({ slug: 'rls-nullkind', name: 'NK', category: 'Café', description: '0123456789abcdef', items: [{ id: 'x', name: 'NoKind' }] }) });
+  r = await req('mx', '/rest/v1/businesses', { method: 'POST', body: JSON.stringify({ slug: 'rls-nullkind', name: 'NK', category: 'Café', description: '0123456789abcdef', items: [{ id: 'x', name: 'NoKind' }] }) });
   t('null item kind rejected', r.status >= 400, r.status);
-  r = await req('A', '/rest/v1/profiles?id=eq.' + A, { method: 'PATCH', body: JSON.stringify({ name: 'n'.repeat(121) }) });
+  r = await req('mx', '/rest/v1/profiles?id=eq.' + MX, { method: 'PATCH', body: JSON.stringify({ name: 'n'.repeat(121) }) });
   t('121-char profile name rejected', r.status >= 400, r.status);
 
   // Cleanup (service role).
