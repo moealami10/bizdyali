@@ -15,6 +15,7 @@
     captchaSiteKey: '',
     otpResendSeconds: 60,
     sessionTtlSec: 30 * 24 * 3600,
-    ownerPhone: ''
+    ownerPhone: '',
+    salesWhatsApp: '212631522155'
   };
 })(window);

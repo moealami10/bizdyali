@@ -207,6 +207,13 @@ repair, freelancers). The language must never imply every user owns a shop.
 | human verification (CAPTCHA) | التحقق | 🔒 | Short label; never transliterate "captcha" |
 | paste (code) | لصّق الكود | 🔒 | Button label next to the code field |
 
+## Payments (manual WhatsApp flow)
+
+| Concept | Darija | Use | Why |
+|---|---|---|---|
+| pay the subscription | خلّص الاشتراك | 🔒 | The action verb; "ادفع" is MSA |
+| how payment works (explainer) | سيفط لينا ميساج فواتساب بالسمية ديال المشروع، غنصايبو لك معلومات الخلاص، وملي تخلّص كنأكّدو ليك الصفحة. | 💬 | Full-sentence flow description for the subscribe panel; states the manual steps in order |
+
 ## Backend notices (server round-trips)
 
 | Concept | Darija | Use | Why |

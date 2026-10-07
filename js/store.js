@@ -925,13 +925,13 @@
     var now = Date.now();
     var D = 86400000;
     // Curated demo photography (verified Unsplash CDN URLs).
-    function U(id, w) { return 'https://images.unsplash.com/' + id + '?w=' + (w || 1200) + '&q=70&auto=format&fit=crop'; }
-    var CAFE_COVER = U('photo-1554118811-1e0d58224f24', 1600);
+    // Self-hosted WebP demo photography (no third-party round-trips on first paint).
+    var CAFE_COVER = 'assets/demo/cafe-cover.webp';
     var CAFE_PHOTOS = {
-      espresso: [U('photo-1495474472287-4d71bcdd2085', 900), U('photo-1445116572660-236099ec97a0', 900)],
-      msemen: [U('photo-1555507036-ab1f4038808a', 900)],
-      tiramisu: [U('photo-1578985545062-69928b1d9587', 900)],
-      birthday: [U('photo-1464349095431-e9a21285b5f3', 900)]
+      espresso: ['assets/demo/espresso-1.webp', 'assets/demo/espresso-2.webp'],
+      msemen: ['assets/demo/msemen.webp'],
+      tiramisu: ['assets/demo/tiramisu.webp'],
+      birthday: ['assets/demo/birthday.webp']
     };
     var list = allBusinesses();
     // Upgrade path: existing photo-less demo gets its photography.

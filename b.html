@@ -66,6 +66,19 @@
     }
     function renderLive(biz) {
       document.title = biz.name + ' — BizDyali';
+      // The cover URL is only known at runtime: preload it just before
+      // render so the LCP image is discovered without waiting for JS paint.
+      try {
+        var coverUrl = biz.cover && (typeof biz.cover === 'string' ? biz.cover : biz.cover.src);
+        var prev = document.getElementById('bp-preload');
+        if (prev) prev.remove();
+        if (coverUrl) {
+          var pl = document.createElement('link');
+          pl.id = 'bp-preload'; pl.rel = 'preload'; pl.as = 'image'; pl.href = coverUrl;
+          pl.setAttribute('fetchpriority', 'high');
+          document.head.appendChild(pl);
+        }
+      } catch (e) {}
       BizDyali.media.resolveBusiness(biz).then(function (ready) {
         BizRender.renderPublicPage(ready, mount, { chrome: true, seo: true });
       }, function () {

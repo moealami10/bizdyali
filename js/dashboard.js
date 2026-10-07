@@ -134,12 +134,18 @@
       $('visNote').textContent = 'الصفحة ديالك خدامة — پارطاجي الرابط مع الزبناء ديالك.';
     }
   }
-  $('subscribeBtn').addEventListener('click', function () {
-    showErr('الاشتراك (100 درهم فالشهر) ما زال ما واجد — هاد النسخة ما كتخلّصش. المعلومات ديالك محفوظة.');
-  });
+  function wireSubscribe() {
+    if (!biz) return;
+    var payHow = $('payHow');
+    if (payHow) payHow.hidden = $('subscribeRow').hidden;
+    var num = (window.BizConfig && BizConfig.salesWhatsApp) || '212631522155';
+    var msg = 'السلام BizDyali، بغيت نخلّص الاشتراك ديال "' + biz.name + '" (الرابط: ' + (biz.slug || '') + ').';
+    $('subscribeBtn').href = 'https://wa.me/' + num + '?text=' + encodeURIComponent(msg);
+  }
 
   // ---- Overview ----
   function renderOverview() {
+    wireSubscribe();
     var st = BizDyali.trialState(biz).status;
     var hasPage = !!(biz.published && biz.slug);
     var live = (st === 'trial' || st === 'subscribed');
